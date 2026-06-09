@@ -1,9 +1,17 @@
 package com.aivle.bookapp.controller;
 
+import com.aivle.bookapp.domain.Book;
 import com.aivle.bookapp.service.BookService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/books")
@@ -12,5 +20,33 @@ public class BookController {
 
     private final BookService bookService;
 
-    // 💡 내일(2일 차) 이곳에 프론트엔드가 요청을 보낼 6개의 주소(GET, POST, PATCH, DELETE 등)를 뚫어줄 예정입니다!
+    // 1. 도서 목록 조회 API (GET /books)
+    @GetMapping
+    public List<Book> getBooks() {
+        return bookService.findAllBooks();
+    }
+
+    // 2. 도서 상세 조회 API (GET /books/{id})
+    @GetMapping("/{id}")
+    public Book getBook(@PathVariable Long id) {
+        return bookService.findBookById(id);
+    }
+    // 3. 신규 도서 등록 (POST)
+    @PostMapping
+    public Book createBook(@Valid @RequestBody Book book) {
+        return bookService.createBook(book);
+    }
+
+    // 4. 도서 정보 수정 (PATCH)
+    @PatchMapping("/{id}")
+    public Book updateBook(@PathVariable Long id, @RequestBody Book patchBook) {
+        return bookService.updateBook(id, patchBook);
+    }
+
+    // 5. 도서 삭제 (DELETE)
+    @DeleteMapping("/{id}")
+    public void deleteBook(@PathVariable Long id) {
+        bookService.deleteBook(id);
+    }
+
 }

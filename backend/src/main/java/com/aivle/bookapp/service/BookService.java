@@ -1,8 +1,11 @@
 package com.aivle.bookapp.service;
 
+import com.aivle.bookapp.domain.Book;
 import com.aivle.bookapp.repository.BookRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -10,5 +13,40 @@ public class BookService {
 
     private final BookRepository bookRepository;
 
-    // 💡 내일(2일 차) 이곳에 도서를 찾고, 저장하고, 지우는 핵심 로직들을 채워 넣을 예정입니다!
+    // 1. 도서 목록 전체 조회
+    public List<Book> findAllBooks() {
+        return bookRepository.findAll(); // DB에 있는 모든 책을 가져옵니다.
+    }
+
+    // 2. 특정 도서 상세 조회
+    public Book findBookById(Long id) {
+        // ID로 책을 찾고, 없으면 일단 기본 에러를 발생시킵니다. (예외 처리는 3일 차에 고도화할 예정!)
+        return bookRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 ID의 도서가 없습니다: " + id));
+    }
+    // 3. 신규 도서 등록
+    public Book createBook(Book book) {
+        return bookRepository.save(book); // DB에 새 책을 저장합니다.
+    }
+
+    // 4. 도서 정보 수정 (부분 수정 - PATCH)
+    public Book updateBook(Long id, Book patchBook) {
+        // 먼저 기존 책이 있는지 찾습니다.
+        Book existingBook = findBookById(id);
+
+        // 프론트엔드에서 수정하라고 보낸(null이 아닌) 데이터만 골라서 업데이트합니다.
+        if (patchBook.getTitle() != null) existingBook.setTitle(patchBook.getTitle());
+        if (patchBook.getAuthor() != null) existingBook.setAuthor(patchBook.getAuthor());
+        if (patchBook.getContent() != null) existingBook.setContent(patchBook.getContent());
+        if (patchBook.getCategory() != null) existingBook.setCategory(patchBook.getCategory());
+
+        return bookRepository.save(existingBook);
+    }
+
+    // 5. 도서 삭제
+    public void deleteBook(Long id) {
+        bookRepository.deleteById(id); // ID에 해당하는 책을 DB에서 삭제합니다.
+    }
+
+
 }
