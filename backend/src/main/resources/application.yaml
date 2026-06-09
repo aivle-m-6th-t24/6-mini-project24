@@ -22,3 +22,4 @@ spring:
   sql:
     init:
       mode: always # data.sql을 항상 실행해서 시드 데이터를 자동 삽입합니다.
+      encoding: UTF-8 # Windows에서 한글이 깨지지 않도록 UTF-8 명시

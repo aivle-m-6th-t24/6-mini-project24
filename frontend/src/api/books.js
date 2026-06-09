@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:3000/books';
+const BASE_URL = 'http://localhost:8080/books';
 
 export async function getBooks() {
   try {
