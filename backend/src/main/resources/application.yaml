@@ -1,0 +1,24 @@
+server:
+  port: 8080 # 백엔드 서버의 기본 포트번호입니다.
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb # 메모리에 저장되는 가벼운 H2 DB를 사용합니다.
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true # 웹 브라우저에서 DB 안의 데이터를 직접 볼 수 있게 허락합니다.
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: create # 서버를 켤 때마다 우리가 만든 Book 설계도를 보고 알아서 DB 표(Table)를 만들어줍니다.
+    show-sql: true # 백엔드가 DB에 보내는 명령어를 화면에 보여줍니다.
+    defer-datasource-initialization: true # Hibernate가 표를 다 만든 뒤에 data.sql을 실행하도록 미룹니다.
+
+  sql:
+    init:
+      mode: always # data.sql을 항상 실행해서 시드 데이터를 자동 삽입합니다.
