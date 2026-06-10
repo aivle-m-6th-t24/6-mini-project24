@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-// 1. 방금 확인한 openai.js에서 함수를 불러옵니다.
+import { useParams } from 'react-router-dom';
 import { generateBookCover } from '../api/openai';
+import { getBook } from '../api/books';
+// 1. 방금 확인한 openai.js에서 함수를 불러옵니다.
 
 function BookDetailPage() {
+    const { id } = useParams();
   // 기존 책 데이터 상태 (예시)
   const [book, setBook] = useState({ title: '', content: '', author: '', category: '' });
 
@@ -10,6 +13,18 @@ function BookDetailPage() {
   const [apiKey, setApiKey] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
+  useEffect(() => {
+    async function fetchBook() {
+      try {
+        const data = await getBook(id);
+        setBook(data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    fetchBook();
+  }, [id]);
 
   // 3. 표지 생성 버튼을 눌렀을 때 실행될 함수입니다.
   const handleGenerateCover = async () => {
