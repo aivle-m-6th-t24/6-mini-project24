@@ -16,11 +16,13 @@ public class BookService {
     private final BookRepository bookRepository;
 
     // 1. 도서 목록 전체 조회
+    @Transactional(readOnly = true)
     public List<Book> findAllBooks() {
         return bookRepository.findAll(); // DB에 있는 모든 책을 가져옵니다.
     }
 
     // 2. 특정 도서 상세 조회
+    @Transactional(readOnly = true)
     public Book findBookById(Long id) {
         // ID로 책을 찾고, 없으면 BookNotFoundException 발생.
         // 미션 6에서 GlobalExceptionHandler가 이 예외를 잡아 404 응답으로 변환할 예정.
