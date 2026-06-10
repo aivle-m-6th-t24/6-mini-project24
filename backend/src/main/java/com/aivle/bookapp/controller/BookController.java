@@ -49,4 +49,15 @@ public class BookController {
         bookService.deleteBook(id);
     }
 
+    // 6. 표지 URL 저장 (PATCH /books/{id}/cover)
+    @PatchMapping("/{id}/cover")
+    public Book updateCover(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body) {
+
+        return bookService.updateCover(
+                id,
+                body.get("coverImageUrl")
+        );
+    }
 }

@@ -56,5 +56,14 @@ public class BookService {
         bookRepository.deleteById(id); // ID에 해당하는 책을 DB에서 삭제합니다.
     }
 
+    // 6. 표지 URL 업데이트
+    @Transactional
+    public Book updateCover(Long id, String coverImageUrl) {
+        Book existingBook = findBookById(id);
+
+        existingBook.setCoverImageUrl(coverImageUrl);
+
+        return bookRepository.save(existingBook);
+    }
 
 }
