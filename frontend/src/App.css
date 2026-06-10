@@ -321,6 +321,65 @@ input, textarea, select {
   white-space: pre-wrap;
 }
 
+/* ── AI 표지 생성기 (BookDetailPage) ─────────────────── */
+.ai-cover-section {
+  margin-top: 32px;
+  padding: 20px 22px;
+  background: var(--surface);
+  border: 1px solid var(--border, #e5e0d8);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(184, 134, 108, 0.08);
+}
+
+.ai-cover-title {
+  margin: 0 0 14px;
+  font-size: 16px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ai-cover-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ai-cover-key {
+  flex: 1;
+  min-width: 220px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border, #d6cfc3);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.ai-cover-key:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ai-cover-preview {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border, #e5e0d8);
+}
+
+.ai-cover-preview h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-muted, #7a6f60);
+  font-weight: 500;
+}
+
+.ai-cover-preview img {
+  width: 200px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(184, 134, 108, 0.15);
+}
+
 /* =================
    Form Layout (Create/Edit)
    ================= */

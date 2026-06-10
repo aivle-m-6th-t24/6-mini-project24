@@ -73,3 +73,19 @@ export async function deleteBook(id) {
     throw err;
   }
 }
+
+// AI 표지 URL을 백엔드의 PATCH /books/{id}/cover 엔드포인트로 저장
+export async function updateCover(id, coverImageUrl) {
+  try {
+    const res = await fetch(`${BASE_URL}/${id}/cover`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coverImageUrl }),
+    });
+    if (!res.ok) throw new Error(`표지 저장에 실패했습니다. (${res.status})`);
+    return await res.json();
+  } catch (err) {
+    console.error('[updateCover]', err);
+    throw err;
+  }
+}
