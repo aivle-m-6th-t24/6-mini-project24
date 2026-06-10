@@ -3,6 +3,8 @@ package com.aivle.bookapp.domain;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 @Entity
@@ -17,9 +19,13 @@ public class Book {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // 도서 고유 번호 (자동 생성)
 
+    @NotBlank(message = "제목은 필수입니다.")
+    @Size(max = 200, message = "제목은 200자 이하여야 합니다.")
     @Column(nullable = false)
     private String title; // 도서 제목 (필수)
 
+    @NotBlank(message = "저자는 필수입니다.")
+    @Size(max = 100, message = "저자명은 100자 이하여야 합니다.")
     @Column(nullable = false)
     private String author; // 저자명 (필수)
 
