@@ -5,6 +5,7 @@ import com.aivle.bookapp.exception.BookNotFoundException;
 import com.aivle.bookapp.repository.BookRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -27,11 +28,13 @@ public class BookService {
                 .orElseThrow(() -> new BookNotFoundException(id));
     }
     // 3. 신규 도서 등록
+    @Transactional
     public Book createBook(Book book) {
         return bookRepository.save(book); // DB에 새 책을 저장합니다.
     }
 
     // 4. 도서 정보 수정 (부분 수정 - PATCH)
+    @Transactional
     public Book updateBook(Long id, Book patchBook) {
         // 먼저 기존 책이 있는지 찾습니다.
         Book existingBook = findBookById(id);
@@ -46,6 +49,7 @@ public class BookService {
     }
 
     // 5. 도서 삭제
+    @Transactional
     public void deleteBook(Long id) {
         bookRepository.deleteById(id); // ID에 해당하는 책을 DB에서 삭제합니다.
     }
