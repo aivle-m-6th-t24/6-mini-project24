@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb # 메모리에 저장되는 가벼운 H2 DB를 사용합니다.
+    url: jdbc:h2:file:./data/bookdb;MODE=MySQL;DB_CLOSE_DELAY=-1 # 파일에 영구 저장. backend/data/bookdb.mv.db
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -15,7 +15,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create # 서버를 켤 때마다 우리가 만든 Book 설계도를 보고 알아서 DB 표(Table)를 만들어줍니다.
+      ddl-auto: update # 테이블이 없으면 만들고, 있으면 변경사항만 반영. 기존 데이터는 보존.
     show-sql: true # 백엔드가 DB에 보내는 명령어를 화면에 보여줍니다.
     defer-datasource-initialization: true # Hibernate가 표를 다 만든 뒤에 data.sql을 실행하도록 미룹니다.
 

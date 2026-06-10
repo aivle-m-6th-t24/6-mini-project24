@@ -9,3 +9,6 @@ CLAUDE.md
 # OS
 .DS_Store
 Thumbs.db
+
+# H2 영구 저장 DB 파일 (각자 PC에만 보존, git 제외)
+backend/data/
