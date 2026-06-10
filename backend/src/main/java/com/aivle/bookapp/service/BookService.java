@@ -46,6 +46,7 @@ public class BookService {
         if (patchBook.getAuthor() != null) existingBook.setAuthor(patchBook.getAuthor());
         if (patchBook.getContent() != null) existingBook.setContent(patchBook.getContent());
         if (patchBook.getCategory() != null) existingBook.setCategory(patchBook.getCategory());
+        if (patchBook.getCoverImageUrl() != null) existingBook.setCoverImageUrl(patchBook.getCoverImageUrl());
 
         return bookRepository.save(existingBook);
     }
