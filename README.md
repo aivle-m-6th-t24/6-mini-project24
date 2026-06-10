@@ -31,20 +31,19 @@
 
 #### ERD — Book 엔티티
 
-```
-┌─────────────────────────────────────────────┐
-│                   books                     │
-├─────────────────────────────────────────────┤
-│ id              BIGINT PK AUTO_INCREMENT    │
-│ title           VARCHAR(200) NOT NULL       │
-│ author          VARCHAR(100) NOT NULL       │
-│ category        VARCHAR(50)                 │
-│ content         TEXT                        │
-│ cover_image_url TEXT                        │
-│ created_at      DATETIME NOT NULL           │
-│ updated_at      DATETIME NOT NULL           │
-└─────────────────────────────────────────────┘
-```
+개념 ERD(Chen 표기법) + 논리 ERD(Crow's Foot, IE 표기법) + 테이블 명세서는 **[backend/ERD.md](backend/ERD.md)** 참고.
+
+요약:
+| 컬럼 | 타입 | NULL | 키 |
+|---|---|---|---|
+| `id` | BIGINT | NOT NULL | PK (AUTO_INCREMENT) |
+| `title` | VARCHAR(200) | NOT NULL | - |
+| `author` | VARCHAR(100) | NOT NULL | - |
+| `category` | VARCHAR(50) | NULL | - |
+| `content` | TEXT | NULL | - |
+| `cover_image_url` | TEXT | NULL | - |
+| `created_at` | DATETIME | NOT NULL | - |
+| `updated_at` | DATETIME | NOT NULL | - |
 
 #### API 정의서
 
@@ -76,6 +75,7 @@
 ├── README.md                          # ← 통합 문서 (이 파일)
 ├── backend/                           # Spring Boot 백엔드
 │   ├── API.md                         # API 상세 정의서
+│   ├── ERD.md                         # ERD (Mermaid + 명세서)
 │   ├── build.gradle
 │   ├── settings.gradle
 │   ├── gradlew, gradlew.bat
@@ -311,4 +311,5 @@ npm run dev
 
 ## 📑 관련 문서
 
+- [backend/ERD.md](backend/ERD.md) — 개념·논리 ERD (Mermaid) + 테이블 명세서
 - [backend/API.md](backend/API.md) — 6개 엔드포인트 상세 API 정의서
