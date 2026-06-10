@@ -1,6 +1,7 @@
 package com.aivle.bookapp.service;
 
 import com.aivle.bookapp.domain.Book;
+import com.aivle.bookapp.exception.BookNotFoundException;
 import com.aivle.bookapp.repository.BookRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,9 +21,10 @@ public class BookService {
 
     // 2. 특정 도서 상세 조회
     public Book findBookById(Long id) {
-        // ID로 책을 찾고, 없으면 일단 기본 에러를 발생시킵니다. (예외 처리는 3일 차에 고도화할 예정!)
+        // ID로 책을 찾고, 없으면 BookNotFoundException 발생.
+        // 미션 6에서 GlobalExceptionHandler가 이 예외를 잡아 404 응답으로 변환할 예정.
         return bookRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("해당 ID의 도서가 없습니다: " + id));
+                .orElseThrow(() -> new BookNotFoundException(id));
     }
     // 3. 신규 도서 등록
     public Book createBook(Book book) {
