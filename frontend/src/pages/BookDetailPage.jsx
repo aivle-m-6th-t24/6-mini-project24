@@ -1,95 +1,79 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getBook, deleteBook } from '../api/books';
+import React, { useState, useEffect } from 'react';
+// 1. 방금 확인한 openai.js에서 함수를 불러옵니다.
+import { generateBookCover } from '../api/openai';
 
 function BookDetailPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [book, setBook] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  // 기존 책 데이터 상태 (예시)
+  const [book, setBook] = useState({ title: '', content: '', author: '', category: '' });
 
-  useEffect(() => {
-    const fetchBook = async () => {
-      try {
-        setLoading(true);
-        const data = await getBook(id);
-        setBook(data);
-        setError('');
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBook();
-  }, [id]);
+  // 2. AI 표지 생성을 위한 새로운 상태값들을 추가합니다.
+  const [apiKey, setApiKey] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
 
-  const handleDelete = async () => {
-    if (!window.confirm('정말 삭제하시겠습니까?')) return;
+  // 3. 표지 생성 버튼을 눌렀을 때 실행될 함수입니다.
+  const handleGenerateCover = async () => {
+    if (!apiKey) {
+      alert("OpenAI API Key를 입력해주세요.");
+      return;
+    }
+
     try {
-      await deleteBook(id);
-      alert('삭제되었습니다.');
-      navigate('/books');
-    } catch (err) {
-      alert(`삭제 실패: ${err.message}`);
+      setIsGenerating(true); // 로딩 상태 시작
+
+      // openai.js의 함수 호출
+      const base64Image = await generateBookCover({
+        apiKey: apiKey,
+        book: book,
+        quality: 'LOW',   // 필요에 따라 MEDIUM 등으로 변경
+        style: '3D'       // 원하는 스타일 옵션 선택
+      });
+
+      // 결과 이미지를 상태에 저장하여 화면에 보여줍니다.
+      setGeneratedImageUrl(base64Image);
+      alert("AI 표지가 성공적으로 생성되었습니다!");
+
+      // TODO: (다음 단계) 생성된 base64Image를 백엔드로 보내서 DB에 저장하는 로직 추가
+
+    } catch (error) {
+      alert(error.message); // openai.js에서 던진 에러 메시지 출력
+    } finally {
+      setIsGenerating(false); // 로딩 상태 종료
     }
   };
 
-  if (loading) {
-    return <div className="page" style={{ padding: 40, textAlign: 'center', color: '#888' }}>불러오는 중...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="page">
-        <div style={{ padding: 16, background: '#fee', color: '#c0392b', borderRadius: 4 }}>
-          {error}
-        </div>
-        <Link to="/" className="back-btn" style={{ marginTop: 16, display: 'inline-block' }}>← 목록으로</Link>
-      </div>
-    );
-  }
-
-  if (!book) return null;
-
   return (
-    <div className="page">
-      <div className="page-head">
-        <Link to="/books" className="back-btn">← 목록으로</Link>
-        <div className="btn-group">
-          <button className="btn" onClick={() => navigate(`/books/${id}/edit`)}>
-            수정
-          </button>
-          <button className="btn btn-danger" onClick={handleDelete}>
-            삭제
-          </button>
-        </div>
-      </div>
+      <div className="book-detail-container">
+        {/* ... 기존 책 정보 표시 영역 ... */}
+        <h1>{book.title}</h1>
+        <p>{book.content}</p>
 
-      <div className="detail-layout">
-        <div className="detail-cover">
-          {book.coverImageUrl ? (
-            <img src={book.coverImageUrl} alt={book.title} />
-          ) : (
-            <span>표지 없음<br />(생성 전)</span>
+        {/* 4. AI 표지 생성 UI 영역 추가 */}
+        <div className="ai-cover-section" style={{ marginTop: '20px', padding: '15px', border: '1px solid #ccc' }}>
+          <h3>🤖 AI 표지 생성기</h3>
+
+
+          <input
+              type="password"
+              placeholder="OpenAI API Key 입력"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              style={{ marginRight: '10px' }}
+          />
+
+          <button onClick={handleGenerateCover} disabled={isGenerating}>
+            {isGenerating ? '표지 생성 중... ⏳' : 'AI 표지 생성하기 ✨'}
+          </button>
+
+          {/* 생성된 이미지가 있으면 화면에 표시 */}
+          {generatedImageUrl && (
+              <div style={{ marginTop: '15px' }}>
+                <h4>생성된 표지 미리보기:</h4>
+                <img src={generatedImageUrl} alt="AI Generated Cover" style={{ width: '200px', borderRadius: '8px' }} />
+              </div>
           )}
-        </div>
-        <div>
-          {book.category && (
-            <div className="category-badge category-badge-lg" data-category={book.category}>{book.category}</div>
-          )}
-          <h1 className="detail-title">{book.title}</h1>
-          <p className="detail-author">{book.author} 著</p>
-          <p className="detail-dates">
-            등록 {new Date(book.createdAt).toLocaleString('ko-KR')}
-            {' · '}
-            수정 {new Date(book.updatedAt).toLocaleString('ko-KR')}
-          </p>
-          <div className="detail-content">{book.content}</div>
         </div>
       </div>
-    </div>
   );
 }
 
