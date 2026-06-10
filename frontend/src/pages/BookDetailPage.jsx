@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { generateBookCover } from '../api/openai';
-import { getBook, updateCover, deleteBook } from '../api/books';
+import { getBook, deleteBook } from '../api/books';
 
 function BookDetailPage() {
   const { id } = useParams();
@@ -9,10 +8,6 @@ function BookDetailPage() {
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const [apiKey, setApiKey] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -39,40 +34,6 @@ function BookDetailPage() {
       navigate('/books');
     } catch (err) {
       alert(`삭제 실패: ${err.message}`);
-    }
-  };
-
-  const handleGenerateCover = async () => {
-    if (!apiKey) {
-      alert('OpenAI API Key를 입력해주세요.');
-      return;
-    }
-    if (!book) {
-      alert('먼저 도서 정보를 불러와야 합니다.');
-      return;
-    }
-
-    try {
-      setIsGenerating(true);
-
-      const base64Image = await generateBookCover({
-        apiKey,
-        book,
-        quality: 'LOW',
-        style: '3D',
-      });
-
-      setGeneratedImageUrl(base64Image);
-
-      // 백엔드에 표지 저장 (PATCH /books/{id}/cover)
-      const updated = await updateCover(book.id, base64Image);
-      setBook(updated);
-
-      alert('AI 표지가 성공적으로 생성되어 저장되었습니다!');
-    } catch (err) {
-      alert(err.message || '표지 생성에 실패했습니다.');
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -111,8 +72,6 @@ function BookDetailPage() {
         <div className="detail-cover">
           {book.coverImageUrl ? (
             <img src={book.coverImageUrl} alt={book.title} />
-          ) : generatedImageUrl ? (
-            <img src={generatedImageUrl} alt={`생성된 표지 - ${book.title}`} />
           ) : (
             <span>표지 없음<br />(생성 전)</span>
           )}
@@ -131,29 +90,6 @@ function BookDetailPage() {
           <div className="detail-content">{book.content}</div>
         </div>
       </div>
-
-      {/* AI 표지 생성 섹션 */}
-      <section className="ai-cover-section">
-        <h3 className="ai-cover-title">🤖 AI 표지 생성기</h3>
-        <div className="ai-cover-controls">
-          <input
-            type="password"
-            className="ai-cover-key"
-            placeholder="OpenAI API Key 입력"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          <button className="btn btn-ai" onClick={handleGenerateCover} disabled={isGenerating}>
-            {isGenerating ? '표지 생성 중...' : 'AI 표지 생성하기'}
-          </button>
-        </div>
-        {generatedImageUrl && (
-          <div className="ai-cover-preview">
-            <h4>생성된 표지 미리보기</h4>
-            <img src={generatedImageUrl} alt="AI Generated Cover" />
-          </div>
-        )}
-      </section>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { getBook, updateBook } from '../api/books';
+import { getBook, updateBook, updateCover } from '../api/books';
 import { generateBookCover } from '../api/openai';
 import { CATEGORIES, DEFAULT_CATEGORY } from '../constants';
 
@@ -108,13 +108,15 @@ function BookEditPage() {
 
     try {
       setSubmitting(true);
+      // 기본 필드 수정 (PATCH /books/{id})
       await updateBook(id, {
         title: form.title.trim(),
         author: form.author.trim(),
         content: form.content.trim(),
         category: form.category,
-        coverImageUrl: coverImage,
       });
+      // 표지 저장 (PATCH /books/{id}/cover) — 백엔드 updateBook이 coverImageUrl을 처리하지 않으므로 별도 호출
+      await updateCover(id, coverImage);
       alert('수정되었습니다.');
       navigate(`/books/${id}`);
     } catch (err) {
