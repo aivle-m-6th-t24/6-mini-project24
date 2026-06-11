@@ -1,4 +1,14 @@
+import { authHeaders } from './auth';
+
 const BASE_URL = 'http://localhost:8080/books';
+
+// CUD 요청에 인증 헤더 자동 추가
+function jsonHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    ...authHeaders(),
+  };
+}
 
 export async function getBooks() {
   try {
@@ -33,9 +43,10 @@ export async function createBook(book) {
     };
     const res = await fetch(BASE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       body: JSON.stringify(payload),
     });
+    if (res.status === 401) throw new Error('로그인이 필요합니다.');
     if (!res.ok) throw new Error(`도서 등록에 실패했습니다. (${res.status})`);
     return await res.json();
   } catch (err) {
@@ -52,9 +63,10 @@ export async function updateBook(id, patch) {
     };
     const res = await fetch(`${BASE_URL}/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       body: JSON.stringify(payload),
     });
+    if (res.status === 401) throw new Error('로그인이 필요합니다.');
     if (!res.ok) throw new Error(`도서 수정에 실패했습니다. (${res.status})`);
     return await res.json();
   } catch (err) {
@@ -65,7 +77,11 @@ export async function updateBook(id, patch) {
 
 export async function deleteBook(id) {
   try {
-    const res = await fetch(`${BASE_URL}/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${BASE_URL}/${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (res.status === 401) throw new Error('로그인이 필요합니다.');
     if (!res.ok) throw new Error(`도서 삭제에 실패했습니다. (${res.status})`);
     return true;
   } catch (err) {
@@ -79,9 +95,10 @@ export async function updateCover(id, coverImageUrl) {
   try {
     const res = await fetch(`${BASE_URL}/${id}/cover`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       body: JSON.stringify({ coverImageUrl }),
     });
+    if (res.status === 401) throw new Error('로그인이 필요합니다.');
     if (!res.ok) throw new Error(`표지 저장에 실패했습니다. (${res.status})`);
     return await res.json();
   } catch (err) {

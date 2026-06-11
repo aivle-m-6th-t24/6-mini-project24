@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getBook, deleteBook } from '../api/books';
+import { useAuth } from '../context/AuthContext';
 
 function BookDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,14 +60,24 @@ function BookDetailPage() {
     <div className="page">
       <div className="page-head">
         <Link to="/books" className="back-btn">← 목록으로</Link>
-        <div className="btn-group">
-          <button className="btn" onClick={() => navigate(`/books/${id}/edit`)}>
-            수정
+        {isLoggedIn ? (
+          <div className="btn-group">
+            <button className="btn" onClick={() => navigate(`/books/${id}/edit`)}>
+              수정
+            </button>
+            <button className="btn btn-danger" onClick={handleDelete}>
+              삭제
+            </button>
+          </div>
+        ) : (
+          <button
+            className="btn"
+            onClick={() => navigate('/login')}
+            title="로그인 후 도서를 수정/삭제할 수 있습니다."
+          >
+            로그인하고 관리하기
           </button>
-          <button className="btn btn-danger" onClick={handleDelete}>
-            삭제
-          </button>
-        </div>
+        )}
       </div>
 
       <div className="detail-layout">

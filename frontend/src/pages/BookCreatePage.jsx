@@ -1,11 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { createBook } from '../api/books';
 import { generateBookCover } from '../api/openai';
+import { useAuth } from '../context/AuthContext';
 import { CATEGORIES, DEFAULT_CATEGORY } from '../constants';
 
 function BookCreatePage() {
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
+
+  // 비로그인 시 로그인 페이지로
+  useEffect(() => {
+    if (!isLoggedIn) {
+      alert('로그인이 필요합니다.');
+      navigate('/login');
+    }
+  }, [isLoggedIn, navigate]);
 
   const [form, setForm] = useState({
     title: '',

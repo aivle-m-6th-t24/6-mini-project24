@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getBooks } from '../api/books';
+import { useAuth } from '../context/AuthContext';
 import { CATEGORIES } from '../constants';
 import bannerImage from "../assets/banner.png";
 
@@ -8,6 +9,7 @@ import bannerImage from "../assets/banner.png";
 
 function BookListPage() {
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,9 +53,15 @@ function BookListPage() {
 
       <div className="page-head">
         <h1>도서 목록</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/books/new')}>
-          + 신규 등록
-        </button>
+        {isLoggedIn ? (
+          <button className="btn btn-primary" onClick={() => navigate('/books/new')}>
+            + 신규 등록
+          </button>
+        ) : (
+          <button className="btn" onClick={() => navigate('/login')} title="로그인 후 도서를 등록할 수 있습니다.">
+            로그인하고 등록하기
+          </button>
+        )}
       </div>
 
       {!loading && !error && books.length > 0 && (
