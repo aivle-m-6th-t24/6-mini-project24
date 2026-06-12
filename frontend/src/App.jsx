@@ -9,6 +9,7 @@ import BookEditPage from './pages/BookEditPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import './App.css';
+import MyPage from './pages/MyPage';
 
 function App() {
   return (
@@ -24,11 +25,13 @@ function App() {
             <Route path="/books/:id/edit" element={<BookEditPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/mypage" element={<MyPage />} />
           </Routes>
         </main>
       </BrowserRouter>
     </AuthProvider>
   );
 }
+
 
 export default App;

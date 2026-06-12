@@ -770,3 +770,86 @@ input, textarea, select {
   0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
   50% { transform: translateY(-20px) rotate(var(--rot, 0deg)); }
 }
+.mypage-card {
+  max-width: 720px;
+  margin: 70px auto;
+  background: #fffaf4;
+  border: 1px solid #eadfd4;
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 8px 24px rgba(90, 60, 40, 0.08);
+}
+
+.mypage-card h1 {
+  margin-bottom: 28px;
+  color: #6f4f3f;
+  font-size: 36px;
+}
+
+.profile-box h2 {
+  margin-bottom: 20px;
+  color: #8a6654;
+  font-size: 24px;
+}
+
+.profile-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid #eadfd4;
+}
+
+.profile-label {
+  font-weight: 700;
+  color: #7c5c4f;
+}
+
+.profile-value {
+  color: #333;
+}
+
+.profile-input {
+  width: 65%;
+  padding: 10px 12px;
+  border: 1px solid #d8c7b8;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.profile-input:focus {
+  outline: none;
+  border-color: #b88972;
+}
+
+.mypage-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.edit-btn,
+.cancel-btn {
+  border: none;
+  padding: 12px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.edit-btn {
+  margin-top: 24px;
+  background: #c2957f;
+  color: white;
+}
+
+.cancel-btn {
+  background: #eee3da;
+  color: #6f4f3f;
+}
+
+.edit-btn:hover,
+.cancel-btn:hover {
+  opacity: 0.9;
+}

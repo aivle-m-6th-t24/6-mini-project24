@@ -25,15 +25,31 @@ function Header() {
         <nav style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {isLoggedIn ? (
             <>
+              <Link to="/mypage" style={{ fontSize: 14 }}>
+                마이페이지
+              </Link>
+
               <span style={{ fontSize: 13, color: '#666' }}>
                 <strong>{user.username}</strong> 님
               </span>
-              <button className="btn" onClick={handleLogout} style={{ fontSize: 13 }}>로그아웃</button>
+
+              <button
+                className="btn"
+                onClick={handleLogout}
+                style={{ fontSize: 13 }}
+              >
+                로그아웃
+              </button>
             </>
           ) : (
             <>
-              <Link to="/login" style={{ fontSize: 14 }}>로그인</Link>
-              <Link to="/signup" style={{ fontSize: 14 }}>회원가입</Link>
+              <Link to="/login" style={{ fontSize: 14 }}>
+                로그인
+              </Link>
+
+              <Link to="/signup" style={{ fontSize: 14 }}>
+                회원가입
+              </Link>
             </>
           )}
         </nav>
