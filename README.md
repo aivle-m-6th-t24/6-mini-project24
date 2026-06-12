@@ -8,7 +8,7 @@
 [![Java](https://img.shields.io/badge/Java-17-orange)](https://openjdk.org)
 
 > 4차에서 개발한 React 프론트엔드(`frontend/`)의 json-server를 Spring Boot + JPA + H2로 대체하고,
-> AI 표지 저장 API까지 확장한다.
+> AI 표지 저장 API와 BCrypt·토큰 기반 회원 인증까지 확장한다.
 
 ---
 
@@ -49,14 +49,20 @@
 
 요약표는 아래와 같다. 엔드포인트별 상세 요청/응답/에러 케이스는 **[backend/API.md](backend/API.md)** 참고.
 
-| # | 메서드 | URL | 설명 | 성공 | 에러 |
-|---|---|---|---|---|---|
-| 1 | GET | `/books` | 목록 조회 | 200 | - |
-| 2 | GET | `/books/{id}` | 상세 조회 | 200 | 404 |
-| 3 | POST | `/books` | 등록 | 200 | 400 |
-| 4 | PATCH | `/books/{id}` | 부분 수정 | 200 | 400, 404 |
-| 5 | DELETE | `/books/{id}` | 삭제 | 200 | 404 |
-| 6 | PATCH | `/books/{id}/cover` | AI 표지 저장 (4일차) | 200 | 400, 404 |
+| # | 메서드 | URL | 설명 | 인증 | 성공 | 에러 |
+|---|---|---|---|---|---|---|
+| 1 | GET | `/books` | 목록 조회 | - | 200 | - |
+| 2 | GET | `/books/{id}` | 상세 조회 | - | 200 | 404 |
+| 3 | POST | `/books` | 등록 | ✅ | 200 | 400, 401 |
+| 4 | PATCH | `/books/{id}` | 부분 수정 | ✅ | 200 | 400, 401, 404 |
+| 5 | DELETE | `/books/{id}` | 삭제 | ✅ | 200 | 401, 404 |
+| 6 | PATCH | `/books/{id}/cover` | AI 표지 저장 | ✅ | 200 | 401, 404 |
+| 7 | POST | `/auth/signup` | 회원가입 | - | 201 | 401* |
+| 8 | POST | `/auth/login` | 로그인 (토큰 발급) | - | 200 | 401 |
+| 9 | POST | `/auth/logout` | 로그아웃 (토큰 무효화) | - | 204 | - |
+
+> 인증(✅)이 필요한 요청은 `Authorization: Bearer {token}` 헤더 필수. GET·`/auth/**`는 면제.
+> *회원가입의 401은 아이디 중복/입력 누락 시 `AuthException`으로 처리됨.
 
 ---
 
@@ -65,9 +71,10 @@
 #### 기술 스택
 - Java 17 / Spring Boot 4.0.6
 - Spring Web (MVC), Spring Data JPA, Validation, Lombok, DevTools
+- Spring Security Crypto (BCrypt 비밀번호 해시)
 - H2 (in-memory)
 - Gradle Wrapper
-- Frontend: React 19, Vite, Fetch API
+- Frontend: React 19, Vite, Fetch API, React Context (인증 상태)
 
 #### 폴더 구조
 ```
@@ -83,25 +90,40 @@
 │   └── src/main/
 │       ├── java/com/aivle/bookapp/
 │       │   ├── BookappApplication.java
-│       │   ├── config/WebConfig.java          # CORS
-│       │   ├── controller/BookController.java # REST API
-│       │   ├── service/BookService.java       # 비즈니스 로직
-│       │   ├── repository/BookRepository.java # JpaRepository
-│       │   ├── exception/                     # 3일차 예외 패키지
-│       │   └── domain/Book.java               # Entity
+│       │   ├── config/
+│       │   │   ├── WebConfig.java              # CORS + 인터셉터 등록
+│       │   │   └── AuthInterceptor.java        # 토큰 인증 (POST/PATCH/DELETE)
+│       │   ├── controller/
+│       │   │   ├── BookController.java         # 도서 REST API (6종)
+│       │   │   └── AuthController.java         # 회원가입/로그인/로그아웃
+│       │   ├── service/
+│       │   │   ├── BookService.java            # 도서 비즈니스 로직
+│       │   │   └── AuthService.java            # 인증 + BCrypt + 토큰
+│       │   ├── repository/
+│       │   │   ├── BookRepository.java         # JpaRepository<Book>
+│       │   │   └── UserRepository.java         # JpaRepository<User>
+│       │   ├── exception/
+│       │   │   ├── BookNotFoundException.java   # 404
+│       │   │   ├── AuthException.java           # 401
+│       │   │   └── GlobalExceptionHandler.java  # @RestControllerAdvice
+│       │   └── domain/
+│       │       ├── Book.java                   # 도서 Entity
+│       │       └── User.java                   # 사용자 Entity
 │       └── resources/
 │           ├── application.yaml
-│           └── data.sql                       # 시드 5권
+│           └── data.sql                       # 시드 8권
 └── frontend/                          # React 프론트엔드 (4차 통합)
     └── src/
-        ├── pages/                     # BookList, BookDetail, BookCreate, BookEdit, Home
-        ├── api/                       # books.js, openai.js
-        └── components/Header.jsx
+        ├── pages/                     # BookList, BookDetail, BookCreate, BookEdit, Home, Login, Signup
+        ├── api/                       # books.js, openai.js, auth.js
+        ├── context/AuthContext.jsx    # 전역 로그인 상태
+        └── components/Header.jsx      # 로그인 상태별 네비게이션
 ```
 
 #### CORS 정책 (`WebConfig.java`)
 - 허용 Origin: `http://localhost:5173` (Vite), `http://localhost:3000` (json-server 잔재)
 - 허용 메서드: `GET, POST, PATCH, DELETE, OPTIONS`
+- 허용 헤더: `*` (`Authorization` 포함)
 
 ---
 
@@ -265,6 +287,90 @@ spring:
 
 ---
 
+## 3일차 산출물 (미션 5·6)
+
+### 미션 5 — 사용자 정의 예외 + `@Transactional`
+
+#### [Exception] 사용자 정의 예외 2종
+- `BookNotFoundException` — 존재하지 않는 도서 id 조회/수정/삭제 시 발생 (→ 404)
+- `AuthException` — 인증/회원가입 관련 실패 시 발생 (→ 401)
+
+```java
+return bookRepository.findById(id)
+    .orElseThrow(() -> new BookNotFoundException(id));
+```
+
+#### [Service] `@Transactional` 적용
+조회 메서드(`findAllBooks`, `findBookById`)는 `@Transactional(readOnly = true)`, 변경 메서드(`createBook`, `updateBook`, `deleteBook`, `updateCover`)는 `@Transactional`을 붙여 트랜잭션 경계를 명확히 했다.
+
+### 미션 6 — `@RestControllerAdvice` 전역 예외 처리
+
+`GlobalExceptionHandler`가 컨트롤러 전역에서 예외를 가로채 일관된 JSON 에러 응답으로 변환한다.
+
+| 예외 | 상태 코드 | 응답 본문 |
+|---|---|---|
+| `BookNotFoundException` | 404 Not Found | `{ "error": "..." }` |
+| `MethodArgumentNotValidException` (`@Valid` 실패) | 400 Bad Request | `{ "필드명": "메시지" }` |
+| `AuthException` | 401 Unauthorized | `{ "error": "..." }` |
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(BookNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleBookNotFound(BookNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(Map.of("error", ex.getMessage()));
+    }
+    // ... @Valid(400), AuthException(401) 핸들러
+}
+```
+
+이전엔 `GET /books/999`가 500을 던졌지만, 이제 404로 정제되어 응답된다.
+
+---
+
+## 4일차 산출물 (미션 7·8)
+
+### 미션 7 — AI 표지 저장 API + 회원 인증
+
+#### [Book] AI 표지 저장 (`PATCH /books/{id}/cover`)
+Frontend가 OpenAI Images API를 직접 호출해 받은 base64 이미지를 Data URL로 변환한 뒤 서버에 저장 요청한다. 백엔드는 `coverImageUrl` 필드만 갱신.
+
+```java
+@PatchMapping("/{id}/cover")
+public Book updateCover(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    return bookService.updateCover(id, body.get("coverImageUrl"));
+}
+```
+
+#### [Auth] 회원가입 / 로그인 / 로그아웃
+- `User` 엔티티 추가 (`users` 테이블): `username`(unique), `password`(BCrypt 해시), `token`(UUID)
+- **비밀번호는 `BCryptPasswordEncoder`로 해시 저장** — 평문 저장 금지
+- 로그인 성공 시 UUID 토큰 발급 → `User.token`에 저장 후 클라이언트에 반환
+- 로그아웃 시 서버의 토큰을 `null`로 무효화
+
+| 메서드 | URL | 설명 | 응답 |
+|---|---|---|---|
+| POST | `/auth/signup` | 회원가입 (BCrypt 해시 저장) | 201 + `{id, username}` |
+| POST | `/auth/login` | 로그인 (토큰 발급) | 200 + `{token, username}` |
+| POST | `/auth/logout` | 로그아웃 (토큰 무효화) | 204 |
+
+#### [Interceptor] 토큰 기반 인증 (`AuthInterceptor`)
+`/books/**`에 인터셉터를 걸어 **쓰기 요청(POST/PATCH/DELETE)만 인증을 요구**한다.
+
+- `GET`·`OPTIONS`(CORS preflight) → 인증 면제 (누구나 조회 가능)
+- 쓰기 요청 → `Authorization: Bearer {token}` 헤더 검사, 무효 토큰이면 `AuthException`(401)
+- `/auth/**`, `/h2-console/**` → 인터셉터 제외 (`WebConfig.excludePathPatterns`)
+
+### 미션 8 — Frontend 인증 연동 + 마무리
+
+- **`api/auth.js`**: signup/login/logout 호출, 토큰을 `localStorage`에 저장, `authHeaders()`로 쓰기 요청에 자동 첨부
+- **`context/AuthContext.jsx`**: 전역 로그인 상태(`user`, `isLoggedIn`) 관리, 새로고침 시 토큰으로 상태 복원
+- **`Header.jsx`**: 로그인 상태에 따라 "로그인/회원가입" ↔ "{username} 님/로그아웃" 토글
+- **`LoginPage` / `SignupPage`**: 인증 폼 화면 추가
+
+---
+
 ## 팀 R&R
 
 | 역할 | 담당 |
@@ -304,8 +410,8 @@ npm run dev
 |---|---|---|---|
 | 1일차 | M1·M2 | 설계 + 골격 + WebConfig + Git | ✅ |
 | 2일차 | M3·M4 | CRUD 5종 + Frontend 1차 연동 | ✅ |
-| 3일차 | M5·M6 | 사용자 정의 예외 + `@Transactional` + `@RestControllerAdvice` | ⏳ |
-| 4일차 | M7·M8 | AI 표지 저장 API + 최종 마무리 + 발표 | ⏳ |
+| 3일차 | M5·M6 | 사용자 정의 예외 + `@Transactional` + `@RestControllerAdvice` | ✅ |
+| 4일차 | M7·M8 | AI 표지 저장 API + 회원 인증(BCrypt+토큰) + Frontend 연동 | ✅ |
 
 ---
 
