@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getBook, deleteBook } from '../api/books';
+import { isFavoriteBook, toggleFavoriteBook } from '../api/favorites';
 import { useAuth } from '../context/AuthContext';
 
 function BookDetailPage() {
@@ -8,6 +9,7 @@ function BookDetailPage() {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const [book, setBook] = useState(null);
+  const [favorite, setFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -17,6 +19,7 @@ function BookDetailPage() {
         setLoading(true);
         const data = await getBook(id);
         setBook(data);
+        setFavorite(isFavoriteBook(data.id));
         setError('');
       } catch (err) {
         setError(err.message || '책을 불러오는 중 오류가 발생했습니다.');
@@ -37,6 +40,16 @@ function BookDetailPage() {
     } catch (err) {
       alert(`삭제 실패: ${err.message}`);
     }
+  };
+
+  const handleFavorite = () => {
+    if (!isLoggedIn) {
+      alert('로그인 후 찜할 수 있습니다.');
+      navigate('/login');
+      return;
+    }
+
+    setFavorite(toggleFavoriteBook(book.id));
   };
 
   if (loading) {
@@ -62,6 +75,9 @@ function BookDetailPage() {
         <Link to="/books" className="back-btn">← 목록으로</Link>
         {isLoggedIn ? (
           <div className="btn-group">
+            <button className={favorite ? 'btn btn-favorite active' : 'btn btn-favorite'} onClick={handleFavorite}>
+              {favorite ? '♥ 찜 해제' : '♡ 찜하기'}
+            </button>
             <button className="btn" onClick={() => navigate(`/books/${id}/edit`)}>
               수정
             </button>

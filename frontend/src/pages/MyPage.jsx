@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
+import { getBooks } from '../api/books';
+import { getFavoriteIds, subscribeFavoritesChanged, toggleFavoriteBook } from '../api/favorites';
 
 function MyPage() {
   const { user, isLoggedIn } = useAuth();
+  const [favoriteBooks, setFavoriteBooks] = useState([]);
 
   const [profile, setProfile] = useState({
     name: '',
@@ -21,6 +25,23 @@ function MyPage() {
       }
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const loadFavoriteBooks = async () => {
+      try {
+        const books = await getBooks();
+        const favoriteIds = getFavoriteIds();
+        setFavoriteBooks(books.filter((book) => favoriteIds.includes(String(book.id))));
+      } catch {
+        setFavoriteBooks([]);
+      }
+    };
+
+    loadFavoriteBooks();
+    return subscribeFavoritesChanged(loadFavoriteBooks);
+  }, [isLoggedIn]);
 
   if (!isLoggedIn) {
     return (
@@ -43,6 +64,11 @@ function MyPage() {
     localStorage.setItem(`profile_${user.username}`, JSON.stringify(profile));
     setIsEditing(false);
     alert('회원 정보가 저장되었습니다.');
+  };
+
+  const handleRemoveFavorite = (bookId) => {
+    toggleFavoriteBook(bookId);
+    setFavoriteBooks((books) => books.filter((book) => String(book.id) !== String(bookId)));
   };
 
   return (
@@ -110,6 +136,46 @@ function MyPage() {
               회원 정보 수정
             </button>
           </>
+        )}
+      </div>
+
+      <div className="profile-box favorite-box">
+        <div className="favorite-title-row">
+          <h2>찜한 도서</h2>
+          <span>{favoriteBooks.length}권</span>
+        </div>
+
+        {favoriteBooks.length > 0 ? (
+          <div className="mypage-favorite-list">
+            {favoriteBooks.map((book) => (
+              <div key={book.id} className="mypage-favorite-item">
+                <Link to={`/books/${book.id}`} className="mypage-favorite-link">
+                  <div className="mypage-favorite-cover">
+                    {book.coverImageUrl ? (
+                      <img src={book.coverImageUrl} alt={book.title} />
+                    ) : (
+                      <span>표지 없음</span>
+                    )}
+                  </div>
+                  <div>
+                    {book.category && (
+                      <span className="category-badge" data-category={book.category}>{book.category}</span>
+                    )}
+                    <strong>{book.title}</strong>
+                    <p>{book.author} · {new Date(book.createdAt).toLocaleDateString('ko-KR')}</p>
+                  </div>
+                </Link>
+                <button className="favorite-icon-btn active" onClick={() => handleRemoveFavorite(book.id)} title="찜 해제" aria-label="찜 해제">
+                  ♥
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-favorites">
+            <p>아직 찜한 도서가 없습니다.</p>
+            <Link to="/books" className="btn btn-primary">찜하러 가기</Link>
+          </div>
         )}
       </div>
     </div>

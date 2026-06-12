@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getBooks } from '../api/books';
+import { getFavoriteIds, toggleFavoriteBook } from '../api/favorites';
 import { useAuth } from '../context/AuthContext';
 import { CATEGORIES } from '../constants';
 import bannerImage from "../assets/banner.png";
@@ -15,6 +16,7 @@ function BookListPage() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('전체');
+  const [favoriteIds, setFavoriteIds] = useState([]);
   
   // 뷰 모드 상태 추가 ('grid' 또는 'list')
   const [viewMode, setViewMode] = useState('grid');
@@ -34,6 +36,24 @@ function BookListPage() {
     };
     fetchBooks();
   }, []);
+
+  useEffect(() => {
+    setFavoriteIds(getFavoriteIds());
+  }, [isLoggedIn]);
+
+  const handleFavorite = (e, bookId) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isLoggedIn) {
+      alert('로그인 후 찜할 수 있습니다.');
+      navigate('/login');
+      return;
+    }
+
+    toggleFavoriteBook(bookId);
+    setFavoriteIds(getFavoriteIds());
+  };
 
   const filteredBooks = books.filter((book) => {
     const matchesSearch =
@@ -124,27 +144,37 @@ function BookListPage() {
         /* viewMode 상태에 따라 클래스명 변경 */
         <div className={viewMode === 'grid' ? 'book-grid' : 'book-list-view'}>
           {filteredBooks.map((book) => (
-            <Link to={`/books/${book.id}`} key={book.id} className="book-card">
-              <div className="book-cover">
-                {book.coverImageUrl ? (
-                  <img src={book.coverImageUrl} alt={book.title} />
-                ) : (
-                  <span>표지 없음<br />(생성 전)</span>
-                )}
-              </div>
-              
-              {/* 텍스트 영역을 묶어주는 div 추가 (리스트 뷰에서 레이아웃을 잡기 위함) */}
-              <div className="book-info">
-                {book.category && (
-                  <div className="category-badge" data-category={book.category}>{book.category}</div>
-                )}
-                <div className="book-title">{book.title}</div>
-                <div className="book-meta">
-                  {book.author} · {new Date(book.createdAt).toLocaleDateString('ko-KR')}
+            <article key={book.id} className="book-card">
+              <Link to={`/books/${book.id}`} className="book-card-link">
+                <div className="book-cover">
+                  {book.coverImageUrl ? (
+                    <img src={book.coverImageUrl} alt={book.title} />
+                  ) : (
+                    <span>표지 없음<br />(생성 전)</span>
+                  )}
                 </div>
-              </div>
-              
-            </Link>
+
+                {/* 텍스트 영역을 묶어주는 div 추가 (리스트 뷰에서 레이아웃을 잡기 위함) */}
+                <div className="book-info">
+                  {book.category && (
+                    <div className="category-badge" data-category={book.category}>{book.category}</div>
+                  )}
+                  <div className="book-title">{book.title}</div>
+                  <div className="book-meta">
+                    {book.author} · {new Date(book.createdAt).toLocaleDateString('ko-KR')}
+                  </div>
+                </div>
+              </Link>
+              <button
+                type="button"
+                className={favoriteIds.includes(String(book.id)) ? 'favorite-icon-btn active' : 'favorite-icon-btn'}
+                onClick={(e) => handleFavorite(e, book.id)}
+                title={favoriteIds.includes(String(book.id)) ? '찜 해제' : '찜하기'}
+                aria-label={favoriteIds.includes(String(book.id)) ? '찜 해제' : '찜하기'}
+              >
+                {favoriteIds.includes(String(book.id)) ? '♥' : '♡'}
+              </button>
+            </article>
           ))}
         </div>
       )}
