@@ -845,6 +845,7 @@ input, textarea, select {
 }
 
 .cancel-btn {
+  margin-top: 24px;
   background: #eee3da;
   color: #6f4f3f;
 }
