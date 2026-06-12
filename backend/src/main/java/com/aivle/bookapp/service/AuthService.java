@@ -6,8 +6,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
+import com.aivle.bookapp.domain.Book;
 import com.aivle.bookapp.domain.User;
 import com.aivle.bookapp.exception.AuthException;
+import com.aivle.bookapp.repository.BookRepository;
 import com.aivle.bookapp.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -17,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final BookRepository bookRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     // 회원가입
@@ -59,5 +64,30 @@ public class AuthService {
             user.setToken(null);
             userRepository.save(user);
         });
+    }
+
+    // 비밀번호 변경 — 현재 비밀번호 확인 후 새 비밀번호로 교체
+    @Transactional
+    public void changePassword(User user, String currentPassword, String newPassword) {
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new AuthException("새 비밀번호를 입력해주세요.");
+        }
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new AuthException("현재 비밀번호가 올바르지 않습니다.");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setToken(null); // 비밀번호 변경 후 재로그인 유도
+        userRepository.save(user);
+    }
+
+    // 회원 탈퇴 — 등록한 도서는 소유자만 해제(보존)하고 계정 삭제
+    @Transactional
+    public void deleteAccount(User user) {
+        List<Book> myBooks = bookRepository.findByOwnerUsername(user.getUsername());
+        for (Book book : myBooks) {
+            book.setOwnerUsername(null);
+        }
+        bookRepository.saveAll(myBooks);
+        userRepository.delete(user);
     }
 }

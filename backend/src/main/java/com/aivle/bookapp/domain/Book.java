@@ -37,6 +37,9 @@ public class Book {
     @Column(columnDefinition = "TEXT")
     private String coverImageUrl; // AI 표지 이미지 주소 (base64 Data URL)
 
+    @Column(length = 50)
+    private String ownerUsername; // 등록한 사용자 (토큰에서 서버가 채움, 시드/탈퇴 도서는 null)
+
     // 4차 프론트엔드(books.js)가 등록일/수정일을 표시하므로 추가
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

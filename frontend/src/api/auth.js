@@ -87,3 +87,54 @@ export function authHeaders() {
   const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
+
+// 내 정보 조회 (마이페이지) — { id, username, createdAt }
+export async function getMe() {
+  try {
+    const res = await fetch(`${AUTH_URL}/me`, { headers: authHeaders() });
+    if (res.status === 401) throw new Error('로그인이 필요합니다.');
+    if (!res.ok) throw new Error(`내 정보를 불러오지 못했습니다. (${res.status})`);
+    return await res.json();
+  } catch (err) {
+    console.error('[getMe]', err);
+    throw err;
+  }
+}
+
+// 비밀번호 변경 — 성공 시 서버가 토큰을 무효화하므로 재로그인 필요
+export async function changePassword(currentPassword, newPassword) {
+  try {
+    const res = await fetch(`${AUTH_URL}/password`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.error || `비밀번호 변경에 실패했습니다. (${res.status})`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('[changePassword]', err);
+    throw err;
+  }
+}
+
+// 회원 탈퇴 — 성공 시 로컬 인증 정보도 정리
+export async function deleteAccount() {
+  try {
+    const res = await fetch(AUTH_URL, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.error || `회원 탈퇴에 실패했습니다. (${res.status})`);
+    }
+  } catch (err) {
+    console.error('[deleteAccount]', err);
+    throw err;
+  } finally {
+    clearAuth();
+  }
+}

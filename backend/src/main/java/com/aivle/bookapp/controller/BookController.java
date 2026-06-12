@@ -1,6 +1,7 @@
 package com.aivle.bookapp.controller;
 
 import com.aivle.bookapp.domain.Book;
+import com.aivle.bookapp.domain.User;
 import com.aivle.bookapp.service.BookService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,7 +34,13 @@ public class BookController {
     }
     // 3. 신규 도서 등록 (POST)
     @PostMapping
-    public Book createBook(@Valid @RequestBody Book book) {
+    public Book createBook(
+            @Valid @RequestBody Book book,
+            @RequestAttribute(value = "currentUser", required = false) User currentUser) {
+        // 소유자는 클라이언트 값이 아니라 인증 토큰의 사용자로 서버가 직접 설정
+        if (currentUser != null) {
+            book.setOwnerUsername(currentUser.getUsername());
+        }
         return bookService.createBook(book);
     }
 

@@ -1,5 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getToken, getUsername, login as apiLogin, logout as apiLogout, signup as apiSignup } from '../api/auth';
+import {
+  getToken,
+  getUsername,
+  login as apiLogin,
+  logout as apiLogout,
+  signup as apiSignup,
+  changePassword as apiChangePassword,
+  deleteAccount as apiDeleteAccount,
+} from '../api/auth';
 
 const AuthContext = createContext(null);
 
@@ -28,8 +36,23 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // 비밀번호 변경 — 서버가 토큰을 무효화하므로 로컬도 로그아웃 처리
+  const changePassword = async (currentPassword, newPassword) => {
+    const data = await apiChangePassword(currentPassword, newPassword);
+    setUser(null);
+    return data;
+  };
+
+  // 회원 탈퇴 — 성공 시 로그인 상태 해제
+  const deleteAccount = async () => {
+    await apiDeleteAccount();
+    setUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn: !!user, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoggedIn: !!user, login, signup, logout, changePassword, deleteAccount }}
+    >
       {children}
     </AuthContext.Provider>
   );
