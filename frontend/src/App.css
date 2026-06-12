@@ -844,15 +844,64 @@ input, textarea, select {
 }
 
 .mypage-card h1 {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
   color: #6f4f3f;
   font-size: 36px;
+}
+
+/* 상단 탭 */
+.mypage-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid #eadfd4;
+}
+
+.mypage-tabs button {
+  border: none;
+  background: none;
+  padding: 12px 18px;
+  margin-bottom: -1px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #a98b78;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.mypage-tabs button:hover {
+  color: #6f4f3f;
+}
+
+.mypage-tabs button.active {
+  color: #6f4f3f;
+  border-bottom-color: #c2957f;
+}
+
+/* 탭 안에서는 섹션 제목이 탭 라벨과 겹치지 않게 첫 박스 위 여백 제거 */
+.mypage-card .profile-box:first-of-type {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .mypage-tabs button {
+    flex: 1;
+    padding: 12px 8px;
+    font-size: 13px;
+  }
 }
 
 .profile-box h2 {
   margin-bottom: 20px;
   color: #8a6654;
   font-size: 24px;
+}
+
+/* 섹션 사이 일관된 구분 (내 정보 / 내 도서 / 찜 / 비번·탈퇴) */
+.profile-box + .profile-box {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid #eadfd4;
 }
 
 .profile-item {
@@ -918,10 +967,6 @@ input, textarea, select {
   opacity: 0.9;
 }
 
-.favorite-box {
-  margin-top: 36px;
-}
-
 .favorite-title-row {
   display: flex;
   justify-content: space-between;
@@ -944,12 +989,14 @@ input, textarea, select {
   font-weight: 700;
 }
 
-.mypage-favorite-list {
+.mypage-favorite-list,
+.mypage-book-list {
   display: grid;
   gap: 10px;
 }
 
-.mypage-favorite-item {
+.mypage-favorite-item,
+.mypage-book-item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -959,7 +1006,8 @@ input, textarea, select {
   background: #fffaf4;
 }
 
-.mypage-favorite-link {
+.mypage-favorite-link,
+.mypage-book-link {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -967,7 +1015,8 @@ input, textarea, select {
   min-width: 0;
 }
 
-.mypage-favorite-cover {
+.mypage-favorite-cover,
+.mypage-book-cover {
   width: 54px;
   height: 78px;
   flex: 0 0 54px;
@@ -982,13 +1031,15 @@ input, textarea, select {
   overflow: hidden;
 }
 
-.mypage-favorite-cover img {
+.mypage-favorite-cover img,
+.mypage-book-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.mypage-favorite-link strong {
+.mypage-favorite-link strong,
+.mypage-book-link strong {
   display: block;
   margin-top: 2px;
   color: var(--text);
@@ -996,7 +1047,8 @@ input, textarea, select {
   line-height: 1.35;
 }
 
-.mypage-favorite-link p {
+.mypage-favorite-link p,
+.mypage-book-link p {
   margin-top: 4px;
   color: var(--text-muted);
   font-size: 12px;
@@ -1021,6 +1073,7 @@ input, textarea, select {
 
   .profile-item,
   .mypage-favorite-item,
+  .mypage-book-item,
   .empty-favorites {
     align-items: flex-start;
     flex-direction: column;
