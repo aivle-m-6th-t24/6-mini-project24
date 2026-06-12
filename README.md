@@ -42,6 +42,7 @@
 | `category` | VARCHAR(50) | NULL | - |
 | `content` | TEXT | NULL | - |
 | `cover_image_url` | TEXT | NULL | - |
+| `owner_username` | VARCHAR(50) | NULL | - (등록한 사용자, 토큰 기반) |
 | `created_at` | DATETIME | NOT NULL | - |
 | `updated_at` | DATETIME | NOT NULL | - |
 
@@ -60,9 +61,13 @@
 | 7 | POST | `/auth/signup` | 회원가입 | - | 201 | 401* |
 | 8 | POST | `/auth/login` | 로그인 (토큰 발급) | - | 200 | 401 |
 | 9 | POST | `/auth/logout` | 로그아웃 (토큰 무효화) | - | 204 | - |
+| 10 | GET | `/auth/me` | 내 정보 조회 (가입일 등) | ✅ | 200 | 401 |
+| 11 | PATCH | `/auth/password` | 비밀번호 변경 | ✅ | 200 | 401 |
+| 12 | DELETE | `/auth` | 회원 탈퇴 | ✅ | 204 | 401 |
 
-> 인증(✅)이 필요한 요청은 `Authorization: Bearer {token}` 헤더 필수. GET·`/auth/**`는 면제.
+> 인증(✅)이 필요한 요청은 `Authorization: Bearer {token}` 헤더 필수. GET·`/auth/{signup,login,logout}`은 면제.
 > *회원가입의 401은 아이디 중복/입력 누락 시 `AuthException`으로 처리됨.
+> `/auth/**`는 인터셉터 면제 경로라 me·password·탈퇴는 컨트롤러에서 토큰을 직접 검증한다.
 
 ---
 
@@ -94,11 +99,11 @@
 │       │   │   ├── WebConfig.java              # CORS + 인터셉터 등록
 │       │   │   └── AuthInterceptor.java        # 토큰 인증 (POST/PATCH/DELETE)
 │       │   ├── controller/
-│       │   │   ├── BookController.java         # 도서 REST API (6종)
-│       │   │   └── AuthController.java         # 회원가입/로그인/로그아웃
+│       │   │   ├── BookController.java         # 도서 REST API (표지 저장 포함 6종)
+│       │   │   └── AuthController.java         # 회원가입/로그인/로그아웃/내정보/비번/탈퇴
 │       │   ├── service/
 │       │   │   ├── BookService.java            # 도서 비즈니스 로직
-│       │   │   └── AuthService.java            # 인증 + BCrypt + 토큰
+│       │   │   └── AuthService.java            # 인증 + BCrypt + 토큰 + 비번변경/탈퇴
 │       │   ├── repository/
 │       │   │   ├── BookRepository.java         # JpaRepository<Book>
 │       │   │   └── UserRepository.java         # JpaRepository<User>
@@ -107,17 +112,17 @@
 │       │   │   ├── AuthException.java           # 401
 │       │   │   └── GlobalExceptionHandler.java  # @RestControllerAdvice
 │       │   └── domain/
-│       │       ├── Book.java                   # 도서 Entity
+│       │       ├── Book.java                   # 도서 Entity (ownerUsername 포함)
 │       │       └── User.java                   # 사용자 Entity
 │       └── resources/
 │           ├── application.yaml
 │           └── data.sql                       # 시드 8권
 └── frontend/                          # React 프론트엔드 (4차 통합)
     └── src/
-        ├── pages/                     # BookList, BookDetail, BookCreate, BookEdit, Home, Login, Signup
-        ├── api/                       # books.js, openai.js, auth.js
+        ├── pages/                     # BookList, BookDetail, BookCreate, BookEdit, Home, Login, Signup, MyPage
+        ├── api/                       # books.js, openai.js, auth.js, favorites.js
         ├── context/AuthContext.jsx    # 전역 로그인 상태
-        └── components/Header.jsx      # 로그인 상태별 네비게이션
+        └── components/Header.jsx      # 로그인 상태별 네비게이션 + 마이페이지
 ```
 
 #### CORS 정책 (`WebConfig.java`)
@@ -368,6 +373,33 @@ public Book updateCover(@PathVariable Long id, @RequestBody Map<String, String> 
 - **`context/AuthContext.jsx`**: 전역 로그인 상태(`user`, `isLoggedIn`) 관리, 새로고침 시 토큰으로 상태 복원
 - **`Header.jsx`**: 로그인 상태에 따라 "로그인/회원가입" ↔ "{username} 님/로그아웃" 토글
 - **`LoginPage` / `SignupPage`**: 인증 폼 화면 추가
+- 이 인증 기반 위에 **마이페이지**(내 정보·내 도서·비번 변경·탈퇴)와 **찜** 기능을 추가 (아래 참고)
+
+---
+
+## 추가 기능 — 마이페이지 · 찜
+
+### 마이페이지 (`MyPage.jsx`, `/mypage`)
+
+로그인 사용자의 개인 화면. **상단 탭으로 분리**해 한 번에 하나씩만 보여준다.
+
+| 탭 | 내용 | 연동 |
+|---|---|---|
+| 내 정보 | 아이디 · 가입일 + 프로필(이름/전화/이메일/선호 장르) 인라인 편집 | 가입일 `GET /auth/me`, 프로필은 localStorage |
+| 내 도서 | 내가 등록한 도서 목록 | `GET /books` → `ownerUsername`으로 필터 |
+| 찜 | 찜한 도서 목록 (하트로 해제) | localStorage (아래 참고) |
+| 계정 | 비밀번호 변경 · 회원 탈퇴 | `PATCH /auth/password`, `DELETE /auth` |
+
+- **도서 소유자**: 등록(POST) 시 백엔드가 **요청 본문이 아니라 토큰의 사용자**로 `Book.ownerUsername`을 설정 → 위변조 방지. (기존 시드 도서는 `null`이라 "내 도서"엔 로그인 후 새로 등록한 책부터 표시)
+- **비밀번호 변경**: 현재 비번 확인(BCrypt) 후 교체, 성공 시 서버가 토큰을 무효화 → 재로그인 유도
+- **회원 탈퇴**: 계정 삭제 시 등록 도서는 **삭제하지 않고 소유자만 해제**(비파괴적)
+
+### 찜 기능 (`api/favorites.js`)
+
+별도 백엔드 없이 **localStorage 기반**으로 구현 (`favorite_books:{username}` 키).
+
+- 목록/상세 페이지의 하트 버튼으로 토글 → `toggleFavoriteBook`
+- `CustomEvent`(`favorites-changed`) + `storage` 이벤트 구독으로 **여러 화면 실시간 동기화** (다른 탭/페이지에서 찜해도 마이페이지에 즉시 반영)
 
 ---
 
@@ -412,6 +444,7 @@ npm run dev
 | 2일차 | M3·M4 | CRUD 5종 + Frontend 1차 연동 | ✅ |
 | 3일차 | M5·M6 | 사용자 정의 예외 + `@Transactional` + `@RestControllerAdvice` | ✅ |
 | 4일차 | M7·M8 | AI 표지 저장 API + 회원 인증(BCrypt+토큰) + Frontend 연동 | ✅ |
+| 추가 | - | 탭형 마이페이지(내 정보·내 도서·찜·계정) + localStorage 찜 기능 | ✅ |
 
 ---
 
