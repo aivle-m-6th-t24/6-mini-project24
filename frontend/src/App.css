@@ -16,8 +16,8 @@
   --accent-dark: #9e705b;   /* 조금 더 연한 톤 */
   --accent-light: #fff5e8;
 
-  --danger: #c4747a;
-  --danger-soft: #ff0019;
+  --danger: #d97a81;        /* 기존 #c4747a 보다 살짝 화사한 코랄 */
+  --danger-soft: #fde8ea;   /* 기존 #ff0019 에서 아주 연한 에러 핑크 배경으로 변경 */
 }
 
 /* =================
