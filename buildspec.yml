@@ -25,6 +25,20 @@ phases:
       - npm run build
       - cd ..
 
+      - echo ">>> ECR 로그인"
+      - aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 879772956301.dkr.ecr.us-west-1.amazonaws.com
+
+      - echo ">>> 백엔드 Docker 이미지 빌드 및 push"
+      - docker build -t m-6th-t24-backend ./backend
+      - docker tag m-6th-t24-backend:latest 879772956301.dkr.ecr.us-west-1.amazonaws.com/m-6th-t24-backend:latest
+      - docker push 879772956301.dkr.ecr.us-west-1.amazonaws.com/m-6th-t24-backend:latest
+
+      - echo ">>> 프론트엔드 Docker 이미지 빌드 및 push"
+      - docker build -t m-6th-t24-frontend ./frontend
+      - docker tag m-6th-t24-frontend:latest 879772956301.dkr.ecr.us-west-1.amazonaws.com/m-6th-t24-frontend:latest
+      - docker push 879772956301.dkr.ecr.us-west-1.amazonaws.com/m-6th-t24-frontend:latest
+
+
   post_build:
     commands:
       - echo ">>> 빌드 완료. 산출물 확인"
