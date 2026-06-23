@@ -25,8 +25,8 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
-                .addPathPatterns("/books/**") // 도서 관련 모든 경로
-                .excludePathPatterns("/auth/**", "/h2-console/**"); // 인증/H2 콘솔은 면제
+                .addPathPatterns("/api/books/**") // 도서 관련 모든 경로
+                .excludePathPatterns("/api/auth/**", "/h2-console/**"); // 인증/H2 콘솔은 면제
         // GET 요청은 인터셉터 안에서 별도로 통과시킴
     }
 }
