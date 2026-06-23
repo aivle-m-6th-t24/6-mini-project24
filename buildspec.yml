@@ -39,6 +39,6 @@ phases:
       - aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_REGION
       - kubectl apply -f k8s/bookapp.yaml
       - kubectl set image deployment/bookapp bookapp=$IMAGE_URI:$IMAGE_TAG
-      - kubectl rollout status deployment/bookapp --timeout=180s
+      - kubectl rollout status deployment/bookapp --timeout=300s
       - echo ">>> 배포 완료. 외부 접속 주소(EXTERNAL-IP) 확인:"
       - kubectl get svc bookapp-service

@@ -22,6 +22,8 @@ spec:
       labels:
         app: bookapp
     spec:
+      nodeSelector:
+        kubernetes.io/arch: amd64      # 이미지가 amd64라서 amd64 노드 강제 (ARM 노드 회피)
       containers:
         - name: bookapp
           image: 879772956301.dkr.ecr.us-west-1.amazonaws.com/aivle24_bookapp:latest
