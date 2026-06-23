@@ -1,0 +1,60 @@
+# 도서관리 시스템 — Kubernetes 배포 정의 (EKS)
+# - Deployment: 컨테이너(통합 이미지) 실행
+# - Service: LoadBalancer로 외부 노출 (AWS ELB 자동 생성)
+#
+# 이미지: ECR (879772956301.dkr.ecr.us-west-1.amazonaws.com/aivle24_bookapp)
+# 주의: H2 파일 DB라 replicas를 늘리면 인스턴스별 데이터가 분리됨 → 데모는 1로 시작
+#       (3일차 Auto Scaling 단계에서 HPA 또는 RDS 전환 검토)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookapp
+  labels:
+    app: bookapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookapp
+  template:
+    metadata:
+      labels:
+        app: bookapp
+    spec:
+      containers:
+        - name: bookapp
+          image: 879772956301.dkr.ecr.us-west-1.amazonaws.com/aivle24_bookapp:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:          # 트래픽 받을 준비 됐는지 (API 응답 확인)
+            httpGet:
+              path: /api/books
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:           # 살아있는지 (죽으면 재시작)
+            httpGet:
+              path: /api/books
+              port: 8080
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookapp-service
+spec:
+  type: LoadBalancer        # AWS에서 외부 접속용 ELB 자동 생성
+  selector:
+    app: bookapp
+  ports:
+    - port: 80              # 외부 접속 포트
+      targetPort: 8080      # 컨테이너 포트

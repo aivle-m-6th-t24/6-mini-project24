@@ -1,39 +1,44 @@
-# AWS CodeBuild 빌드 설명서
-# - 백엔드(Spring Boot, Gradle)와 프론트엔드(React, Vite)를 한 번에 빌드한다.
-# - 이 파일은 반드시 레포 "루트"에 있어야 CodeBuild가 자동으로 찾는다.
+# AWS CodeBuild — EKS 배포 파이프라인
+# 흐름: Docker 이미지 빌드 → ECR push → kubectl로 EKS에 배포
+#
+# ⚠️ 이 buildspec이 동작하려면 CodeBuild 쪽 설정이 필요함:
+#   1) CodeBuild 환경: "권한 있음(Privileged)" 모드 ON  ← docker build 하려면 필수
+#   2) CodeBuild 서비스 역할 권한: ECR(push), EKS(DescribeCluster) 정책
+#   3) EKS RBAC: aws-auth ConfigMap에 CodeBuild 역할 등록 (kubectl 권한)
+#      또는 access entry로 CodeBuild 역할에 클러스터 권한 부여
+
 version: 0.2
 
+env:
+  variables:
+    AWS_REGION: us-west-1
+    ECR_REGISTRY: 879772956301.dkr.ecr.us-west-1.amazonaws.com
+    ECR_REPO: aivle24_bookapp
+    CLUSTER_NAME: aivle24_cluster
+
 phases:
-  install:
-    # CodeBuild 표준 이미지에서 사용할 런타임 버전
-    runtime-versions:
-      java: corretto17   # 백엔드: Java 17 (build.gradle toolchain과 동일)
-      nodejs: 20         # 프론트: Node 20 (빌드용)
+  pre_build:
+    commands:
+      - echo ">>> ECR 로그인"
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      - IMAGE_URI=$ECR_REGISTRY/$ECR_REPO
+      - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}   # 커밋 해시를 태그로
+      - echo "이미지 - $IMAGE_URI:$IMAGE_TAG"
 
   build:
     commands:
-      - echo ">>> [1/2] 백엔드 빌드 (Spring Boot / Gradle)"
-      - cd backend
-      - chmod +x gradlew
-      # TODO: 현재 contextLoads() 테스트가 Hibernate Dialect 문제로 실패하여 임시로 -x test.
-      #       추후 application.yaml에 H2 Dialect 명시 또는 테스트 프로파일 분리 후 -x test 제거할 것.
-      - ./gradlew build -x test --no-daemon
-      - cd ..
-      - echo ">>> [2/2] 프론트엔드 빌드 (React / Vite)"
-      - cd frontend
-      - npm ci
-      - npm run build
-      - cd ..
+      - echo ">>> Docker 이미지 빌드 (React + Spring 통합)"
+      - docker build -t $IMAGE_URI:$IMAGE_TAG -t $IMAGE_URI:latest .
 
   post_build:
     commands:
-      - echo ">>> 빌드 완료. 산출물 확인"
-      - ls -al backend/build/libs/
-      - ls -al frontend/dist/
-
-# 빌드 결과물(배포 단계에서 사용) — 2일차 Deploy 추가 시 appspec.yml/scripts도 여기에 포함 예정
-artifacts:
-  files:
-    - backend/build/libs/*.jar     # Spring Boot 실행 JAR
-    - frontend/dist/**/*           # React 정적 빌드 산출물
-  discard-paths: no
+      - echo ">>> ECR push"
+      - docker push $IMAGE_URI:$IMAGE_TAG
+      - docker push $IMAGE_URI:latest
+      - echo ">>> EKS 배포 (kubectl)"
+      - aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_REGION
+      - kubectl apply -f k8s/bookapp.yaml
+      - kubectl set image deployment/bookapp bookapp=$IMAGE_URI:$IMAGE_TAG
+      - kubectl rollout status deployment/bookapp --timeout=180s
+      - echo ">>> 배포 완료. 외부 접속 주소(EXTERNAL-IP) 확인:"
+      - kubectl get svc bookapp-service
