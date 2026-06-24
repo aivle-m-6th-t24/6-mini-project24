@@ -7,3 +7,5 @@ export const API_ROOT = rawApiBaseUrl
 
 export const BOOKS_URL = `${API_ROOT}/books`;
 export const AUTH_URL = `${API_ROOT}/auth`;
+export const REVIEWS_URL = `${API_ROOT}/reviews`;
+export const FAVORITES_URL = `${API_ROOT}/favorites`;

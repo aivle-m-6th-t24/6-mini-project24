@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getBook, deleteBook } from '../api/books';
-import { isFavoriteBook, toggleFavoriteBook } from '../api/favorites';
+import { getFavoriteIds, toggleFavoriteBook } from '../api/favorites';
+import { getReviews, addReview } from '../api/reviews';
 import { useAuth } from '../context/AuthContext';
 
 function BookDetailPage() {
@@ -23,7 +24,8 @@ function BookDetailPage() {
         setLoading(true);
         const data = await getBook(id);
         setBook(data);
-        setFavorite(isFavoriteBook(data.id));
+        const favIds = await getFavoriteIds();
+        setFavorite(favIds.includes(String(data.id)));
         setError('');
       } catch (err) {
         setError(err.message || '책을 불러오는 중 오류가 발생했습니다.');
@@ -36,13 +38,9 @@ function BookDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    const savedReviews = localStorage.getItem(`reviews_${id}`);
-
-    if (savedReviews) {
-      setReviews(JSON.parse(savedReviews));
-    } else {
-      setReviews([]);
-    }
+    getReviews(id)
+      .then(setReviews)
+      .catch(() => setReviews([]));
   }, [id]);
 
   const handleDelete = async () => {
@@ -57,33 +55,31 @@ function BookDetailPage() {
     }
   };
 
-  const handleFavorite = () => {
+  const handleFavorite = async () => {
     if (!isLoggedIn) {
       alert('로그인 후 찜할 수 있습니다.');
       navigate('/login');
       return;
     }
 
-    setFavorite(toggleFavoriteBook(book.id));
+    const next = await toggleFavoriteBook(book.id, favorite);
+    setFavorite(next);
   };
 
-  const handleAddReview = () => {
+  const handleAddReview = async () => {
     if (!reviewText.trim()) {
       alert('리뷰를 입력해주세요.');
       return;
     }
 
-    const newReview = {
-      id: Date.now(),
-      text: reviewText,
-      createdAt: new Date().toLocaleString('ko-KR'),
-    };
-
-    const updatedReviews = [newReview, ...reviews];
-
-    setReviews(updatedReviews);
-    localStorage.setItem(`reviews_${id}`, JSON.stringify(updatedReviews));
-    setReviewText('');
+    try {
+      await addReview(id, reviewText);
+      const updated = await getReviews(id); // 저장 후 최신 목록 다시 조회
+      setReviews(updated);
+      setReviewText('');
+    } catch (err) {
+      alert(err.message || '리뷰 작성에 실패했습니다.');
+    }
   };
 
   if (loading) {
@@ -215,7 +211,7 @@ function BookDetailPage() {
                 }}
               >
                 <p>{review.text}</p>
-                <small>{review.createdAt}</small>
+                <small>{review.username} · {new Date(review.createdAt).toLocaleString('ko-KR')}</small>
               </div>
             ))
           )}

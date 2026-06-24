@@ -38,10 +38,10 @@ function BookListPage() {
   }, []);
 
   useEffect(() => {
-    setFavoriteIds(getFavoriteIds());
+    getFavoriteIds().then(setFavoriteIds);
   }, [isLoggedIn]);
 
-  const handleFavorite = (e, bookId) => {
+  const handleFavorite = async (e, bookId) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -51,8 +51,9 @@ function BookListPage() {
       return;
     }
 
-    toggleFavoriteBook(bookId);
-    setFavoriteIds(getFavoriteIds());
+    const isFav = favoriteIds.includes(String(bookId));
+    await toggleFavoriteBook(bookId, isFav);
+    setFavoriteIds(await getFavoriteIds());
   };
 
   const filteredBooks = books.filter((book) => {

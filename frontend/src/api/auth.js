@@ -102,6 +102,18 @@ export async function getMe() {
   }
 }
 
+// 프로필 수정 (이름/전화/이메일/선호장르) — DB 저장
+export async function updateProfile(profile) {
+  const res = await fetch(`${AUTH_URL}/profile`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(profile),
+  });
+  if (res.status === 401) throw new Error('로그인이 필요합니다.');
+  if (!res.ok) throw new Error(`프로필 저장에 실패했습니다. (${res.status})`);
+  return await res.json();
+}
+
 // 비밀번호 변경 — 성공 시 서버가 토큰을 무효화하므로 재로그인 필요
 export async function changePassword(currentPassword, newPassword) {
   try {

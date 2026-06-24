@@ -80,6 +80,16 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    // 마이페이지 프로필 수정 (이름/전화/이메일/선호장르)
+    @Transactional
+    public User updateProfile(User user, String name, String phone, String email, String genre) {
+        user.setName(name);
+        user.setPhone(phone);
+        user.setEmail(email);
+        user.setGenre(genre);
+        return userRepository.save(user);
+    }
+
     // 회원 탈퇴 — 등록한 도서는 소유자만 해제(보존)하고 계정 삭제
     @Transactional
     public void deleteAccount(User user) {
