@@ -45,14 +45,6 @@ phases:
       - ls -al backend/build/libs/
       - ls -al frontend/dist/
 
-      - echo ">>> EKS 배포"
-      - aws eks update-kubeconfig --region us-west-1 --name m-6th-t24-cluster
-      - kubectl apply -f k8s/
-      - kubectl rollout restart deployment/backend
-      - kubectl rollout restart deployment/frontend
-      - kubectl rollout status deployment/backend --timeout=180s
-      - kubectl rollout status deployment/frontend --timeout=180s
-
 # 빌드 결과물(배포 단계에서 사용) — 2일차 Deploy 추가 시 appspec.yml/scripts도 여기에 포함 예정
 artifacts:
   files:
