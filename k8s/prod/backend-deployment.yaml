@@ -24,3 +24,24 @@ spec:
           env:
             - name: APP_CORS_ALLOWED_ORIGINS
               value: "*"
+            # DB 접속 정보 — db-secret에서 주입 (dev와 같은 RDS/bookdb 공유)
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_URL
+            - name: DB_DRIVER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_DRIVER
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_PASSWORD
