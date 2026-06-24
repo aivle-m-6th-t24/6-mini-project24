@@ -23,7 +23,7 @@ spec:
         app: bookapp
     spec:
       nodeSelector:
-        kubernetes.io/arch: arm64      # Auto Mode 기본이 Graviton(ARM)이라 ARM 노드 사용 (이미지도 ARM64로 빌드)
+        kubernetes.io/arch: amd64      # general-purpose 노드풀이 amd64 전용 → amd64 노드 사용 (이미지도 amd64)
       containers:
         - name: bookapp
           image: 879772956301.dkr.ecr.us-west-1.amazonaws.com/aivle24_bookapp:latest
