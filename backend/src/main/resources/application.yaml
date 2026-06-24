@@ -3,10 +3,11 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:file:./data/bookdb;MODE=MySQL;DB_CLOSE_DELAY=-1 # 파일에 영구 저장. backend/data/bookdb.mv.db
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    # 환경변수(DB_URL 등)가 있으면 그 값(=RDS MySQL), 없으면 로컬 H2 파일로 fallback
+    url: ${DB_URL:jdbc:h2:file:./data/bookdb;MODE=MySQL;DB_CLOSE_DELAY=-1}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
 
   h2:
     console:

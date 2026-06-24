@@ -25,7 +25,8 @@ dependencies {
 	implementation 'org.springframework.security:spring-security-crypto' // BCrypt 비밀번호 해시
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	runtimeOnly 'com.h2database:h2'
+	runtimeOnly 'com.h2database:h2'                 // 로컬 개발용 (환경변수 없을 때 fallback)
+	runtimeOnly 'com.mysql:mysql-connector-j'       // 배포용 MySQL(RDS) 드라이버
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'

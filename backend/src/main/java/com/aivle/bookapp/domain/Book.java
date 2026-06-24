@@ -34,8 +34,8 @@ public class Book {
 
     private String category = "소설"; // 기본값 세팅
 
-    @Column(columnDefinition = "TEXT")
-    private String coverImageUrl; // AI 표지 이미지 주소 (base64 Data URL)
+    @Column(columnDefinition = "LONGTEXT")
+    private String coverImageUrl; // AI 표지 이미지 주소 (base64 Data URL — 매우 길어서 LONGTEXT)
 
     @Column(length = 50)
     private String ownerUsername; // 등록한 사용자 (토큰에서 서버가 채움, 시드/탈퇴 도서는 null)
