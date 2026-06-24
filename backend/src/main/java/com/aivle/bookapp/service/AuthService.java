@@ -46,7 +46,11 @@ public class AuthService {
             throw new AuthException("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        user.setToken(UUID.randomUUID().toString());
+        // 기존 토큰이 있으면 재사용 — 같은 계정으로 다른 기기/사이트(dev·prod)에서
+        // 로그인해도 서로의 세션을 무효화하지 않도록 (토큰을 매번 덮어쓰지 않음)
+        if (user.getToken() == null || user.getToken().isBlank()) {
+            user.setToken(UUID.randomUUID().toString());
+        }
         return userRepository.save(user);
     }
 
