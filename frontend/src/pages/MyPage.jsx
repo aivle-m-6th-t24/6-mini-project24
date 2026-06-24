@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getMe } from '../api/auth';
+import { getMe, updateProfile } from '../api/auth';
 import { getBooks } from '../api/books';
 import { getFavoriteIds, subscribeFavoritesChanged, toggleFavoriteBook } from '../api/favorites';
 
@@ -37,13 +37,6 @@ function MyPage() {
   const [pwError, setPwError] = useState('');
   const [pwSubmitting, setPwSubmitting] = useState(false);
 
-  // localStorage 프로필 불러오기
-  useEffect(() => {
-    if (!user) return;
-    const saved = localStorage.getItem(`profile_${user.username}`);
-    if (saved) setProfile(JSON.parse(saved));
-  }, [user]);
-
   // 서버 정보(가입일) + 내가 등록한 도서 불러오기
   useEffect(() => {
     if (!isLoggedIn || !user) return;
@@ -53,6 +46,7 @@ function MyPage() {
         const [me, books] = await Promise.all([getMe(), getBooks()]);
         if (!active) return;
         setServerInfo(me);
+        setProfile({ name: me.name || '', phone: me.phone || '', email: me.email || '', genre: me.genre || '' });
         setMyBooks(books.filter((b) => b.ownerUsername === user.username));
       } catch (err) {
         console.error('[MyPage]', err);
@@ -71,7 +65,7 @@ function MyPage() {
     const loadFavoriteBooks = async () => {
       try {
         const books = await getBooks();
-        const favoriteIds = getFavoriteIds();
+        const favoriteIds = await getFavoriteIds();
         setFavoriteBooks(books.filter((book) => favoriteIds.includes(String(book.id))));
       } catch {
         setFavoriteBooks([]);
@@ -96,15 +90,19 @@ function MyPage() {
     setProfile({ ...profile, [name]: value });
   };
 
-  const handleProfileSave = () => {
-    localStorage.setItem(`profile_${user.username}`, JSON.stringify(profile));
-    setIsEditing(false);
-    alert('회원 정보가 저장되었습니다.');
+  const handleProfileSave = async () => {
+    try {
+      await updateProfile(profile);
+      setIsEditing(false);
+      alert('회원 정보가 저장되었습니다.');
+    } catch (err) {
+      alert(err.message || '저장에 실패했습니다.');
+    }
   };
 
   // ── 찜 해제 ──
-  const handleRemoveFavorite = (bookId) => {
-    toggleFavoriteBook(bookId);
+  const handleRemoveFavorite = async (bookId) => {
+    await toggleFavoriteBook(bookId, true);
     setFavoriteBooks((books) => books.filter((book) => String(book.id) !== String(bookId)));
   };
 

@@ -1,44 +1,56 @@
-import { getUsername } from './auth';
+import { authHeaders, isLoggedIn } from './auth';
+import { FAVORITES_URL } from './baseUrl';
 
-const FAVORITES_KEY_PREFIX = 'favorite_books';
 const FAVORITES_CHANGED_EVENT = 'favorites-changed';
 
-function getStorageKey() {
-  return `${FAVORITES_KEY_PREFIX}:${getUsername() || 'guest'}`;
-}
-
-export function getFavoriteIds() {
+// 내가 찜한 책 ID 목록 (서버 조회) — 비로그인 시 빈 배열
+export async function getFavoriteIds() {
+  if (!isLoggedIn()) return [];
   try {
-    const raw = localStorage.getItem(getStorageKey());
-    const ids = raw ? JSON.parse(raw) : [];
-    return Array.isArray(ids) ? ids.map(String) : [];
+    const res = await fetch(FAVORITES_URL, { headers: authHeaders() });
+    if (!res.ok) return [];
+    const ids = await res.json(); // Long[]
+    return ids.map(String);
   } catch {
     return [];
   }
 }
 
-export function isFavoriteBook(bookId) {
-  return getFavoriteIds().includes(String(bookId));
+// 찜 추가
+export async function addFavorite(bookId) {
+  await fetch(`${FAVORITES_URL}?bookId=${bookId}`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  notifyChanged();
 }
 
-export function toggleFavoriteBook(bookId) {
-  const id = String(bookId);
-  const ids = getFavoriteIds();
-  const nextIds = ids.includes(id)
-    ? ids.filter((favoriteId) => favoriteId !== id)
-    : [id, ...ids];
+// 찜 해제
+export async function removeFavorite(bookId) {
+  await fetch(`${FAVORITES_URL}?bookId=${bookId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  notifyChanged();
+}
 
-  localStorage.setItem(getStorageKey(), JSON.stringify(nextIds));
-  window.dispatchEvent(new CustomEvent(FAVORITES_CHANGED_EVENT, { detail: nextIds }));
-  return nextIds.includes(id);
+// 현재 찜 상태(isCurrentlyFavorite)에 따라 토글 → 새 상태(boolean) 반환
+export async function toggleFavoriteBook(bookId, isCurrentlyFavorite) {
+  if (isCurrentlyFavorite) {
+    await removeFavorite(bookId);
+    return false;
+  }
+  await addFavorite(bookId);
+  return true;
+}
+
+// 찜 변경을 다른 페이지에 알림 (MyPage 실시간 반영용)
+function notifyChanged() {
+  window.dispatchEvent(new CustomEvent(FAVORITES_CHANGED_EVENT));
 }
 
 export function subscribeFavoritesChanged(callback) {
-  const handler = () => callback(getFavoriteIds());
+  const handler = () => callback();
   window.addEventListener(FAVORITES_CHANGED_EVENT, handler);
-  window.addEventListener('storage', handler);
-  return () => {
-    window.removeEventListener(FAVORITES_CHANGED_EVENT, handler);
-    window.removeEventListener('storage', handler);
-  };
+  return () => window.removeEventListener(FAVORITES_CHANGED_EVENT, handler);
 }

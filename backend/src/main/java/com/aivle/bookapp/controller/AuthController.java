@@ -83,6 +83,27 @@ public class AuthController {
         response.put("id", user.getId());
         response.put("username", user.getUsername());
         response.put("createdAt", user.getCreatedAt());
+        response.put("name", user.getName());
+        response.put("phone", user.getPhone());
+        response.put("email", user.getEmail());
+        response.put("genre", user.getGenre());
+        return ResponseEntity.ok(response);
+    }
+
+    // 프로필 수정 (이름/전화/이메일/선호장르)
+    @PatchMapping("/profile")
+    public ResponseEntity<Map<String, Object>> updateProfile(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody Map<String, String> body) {
+        User user = requireUser(authHeader);
+        User updated = authService.updateProfile(
+                user, body.get("name"), body.get("phone"), body.get("email"), body.get("genre"));
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("name", updated.getName());
+        response.put("phone", updated.getPhone());
+        response.put("email", updated.getEmail());
+        response.put("genre", updated.getGenre());
         return ResponseEntity.ok(response);
     }
 

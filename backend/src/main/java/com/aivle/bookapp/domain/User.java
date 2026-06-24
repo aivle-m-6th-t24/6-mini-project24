@@ -26,6 +26,19 @@ public class User {
     @Column(length = 200)
     private String token; // 로그인 시 발급되는 인증 토큰 (UUID)
 
+    // 마이페이지 프로필 (DB 저장)
+    @Column(length = 50)
+    private String name;
+
+    @Column(length = 30)
+    private String phone;
+
+    @Column(length = 100)
+    private String email;
+
+    @Column(length = 50)
+    private String genre; // 선호 장르
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

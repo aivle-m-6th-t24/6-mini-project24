@@ -46,7 +46,11 @@ public class AuthService {
             throw new AuthException("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        user.setToken(UUID.randomUUID().toString());
+        // 기존 토큰이 있으면 재사용 — 같은 계정으로 다른 기기/사이트(dev·prod)에서
+        // 로그인해도 서로의 세션을 무효화하지 않도록 (토큰을 매번 덮어쓰지 않음)
+        if (user.getToken() == null || user.getToken().isBlank()) {
+            user.setToken(UUID.randomUUID().toString());
+        }
         return userRepository.save(user);
     }
 
@@ -78,6 +82,16 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setToken(null); // 비밀번호 변경 후 재로그인 유도
         userRepository.save(user);
+    }
+
+    // 마이페이지 프로필 수정 (이름/전화/이메일/선호장르)
+    @Transactional
+    public User updateProfile(User user, String name, String phone, String email, String genre) {
+        user.setName(name);
+        user.setPhone(phone);
+        user.setEmail(email);
+        user.setGenre(genre);
+        return userRepository.save(user);
     }
 
     // 회원 탈퇴 — 등록한 도서는 소유자만 해제(보존)하고 계정 삭제
