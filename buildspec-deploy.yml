@@ -1,0 +1,13 @@
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - echo ">>> EKS 배포 시작"
+      - aws eks update-kubeconfig --region us-west-1 --name m-6th-t24-cluster
+      - kubectl apply -f k8s/
+      - kubectl rollout restart deployment/backend
+      - kubectl rollout restart deployment/frontend
+      - kubectl rollout status deployment/backend --timeout=180s
+      - kubectl rollout status deployment/frontend --timeout=180s
+      - echo ">>> EKS 배포 완료"
