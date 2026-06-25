@@ -19,3 +19,27 @@ export async function addReview(bookId, text) {
   if (!res.ok) throw new Error(`리뷰 작성에 실패했습니다. (${res.status})`);
   return await res.json();
 }
+
+// 리뷰 수정
+export async function updateReview(reviewId, text) {
+  const res = await fetch(`${REVIEWS_URL}/${reviewId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ text }),
+  });
+
+  if (res.status === 401) throw new Error('로그인이 필요합니다.');
+  if (!res.ok) throw new Error(`리뷰 수정에 실패했습니다. (${res.status})`);
+  return await res.json();
+}
+
+// 리뷰 삭제
+export async function deleteReview(reviewId) {
+  const res = await fetch(`${REVIEWS_URL}/${reviewId}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  });
+
+  if (res.status === 401) throw new Error('로그인이 필요합니다.');
+  if (!res.ok) throw new Error(`리뷰 삭제에 실패했습니다. (${res.status})`);
+}
