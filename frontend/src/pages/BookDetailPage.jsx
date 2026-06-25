@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getBook, deleteBook } from '../api/books';
 import { getFavoriteIds, toggleFavoriteBook } from '../api/favorites';
-import { getReviews, addReview } from '../api/reviews';
+import { getReviews, addReview, updateReview, deleteReview } from '../api/reviews';
 import { useAuth } from '../context/AuthContext';
 
 function BookDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
 
   const [book, setBook] = useState(null);
   const [favorite, setFavorite] = useState(false);
@@ -17,6 +17,8 @@ function BookDetailPage() {
 
   const [reviews, setReviews] = useState([]);
   const [reviewText, setReviewText] = useState('');
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [editingText, setEditingText] = useState('');
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -24,8 +26,10 @@ function BookDetailPage() {
         setLoading(true);
         const data = await getBook(id);
         setBook(data);
+
         const favIds = await getFavoriteIds();
         setFavorite(favIds.includes(String(data.id)));
+
         setError('');
       } catch (err) {
         setError(err.message || '책을 불러오는 중 오류가 발생했습니다.');
@@ -38,10 +42,17 @@ function BookDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    getReviews(id)
-      .then(setReviews)
-      .catch(() => setReviews([]));
+    fetchReviews();
   }, [id]);
+
+  const fetchReviews = async () => {
+    try {
+      const data = await getReviews(id);
+      setReviews(data);
+    } catch (err) {
+      setReviews([]);
+    }
+  };
 
   const handleDelete = async () => {
     if (!window.confirm('정말 삭제하시겠습니까?')) return;
@@ -74,11 +85,47 @@ function BookDetailPage() {
 
     try {
       await addReview(id, reviewText);
-      const updated = await getReviews(id); // 저장 후 최신 목록 다시 조회
-      setReviews(updated);
+      await fetchReviews();
       setReviewText('');
     } catch (err) {
       alert(err.message || '리뷰 작성에 실패했습니다.');
+    }
+  };
+
+  const handleStartEdit = (review) => {
+    setEditingReviewId(review.id);
+    setEditingText(review.text);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingReviewId(null);
+    setEditingText('');
+  };
+
+  const handleUpdateReview = async (reviewId) => {
+    if (!editingText.trim()) {
+      alert('리뷰 내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      await updateReview(reviewId, editingText);
+      await fetchReviews();
+      setEditingReviewId(null);
+      setEditingText('');
+    } catch (err) {
+      alert(err.message || '리뷰 수정에 실패했습니다.');
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('리뷰를 삭제하시겠습니까?')) return;
+
+    try {
+      await deleteReview(reviewId);
+      await fetchReviews();
+    } catch (err) {
+      alert(err.message || '리뷰 삭제에 실패했습니다.');
     }
   };
 
@@ -171,11 +218,19 @@ function BookDetailPage() {
         </div>
       </div>
 
-      <div style={{ marginTop: '40px' }}>
-        <h2>📝 리뷰</h2>
+      <div style={{ marginTop: '48px' }}>
+        <h2 style={{ marginBottom: '16px' }}>📝 리뷰</h2>
 
         {isLoggedIn ? (
-          <>
+          <div
+            style={{
+              padding: '20px',
+              border: '1px solid #eee',
+              borderRadius: '16px',
+              background: '#fafafa',
+              marginBottom: '24px',
+            }}
+          >
             <textarea
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
@@ -183,35 +238,103 @@ function BookDetailPage() {
               style={{
                 width: '100%',
                 minHeight: '100px',
-                padding: '10px',
-                marginBottom: '10px',
+                padding: '14px',
+                borderRadius: '12px',
+                border: '1px solid #ddd',
+                marginBottom: '12px',
+                resize: 'vertical',
+                fontSize: '15px',
+                boxSizing: 'border-box',
               }}
             />
 
             <button className="btn" onClick={handleAddReview}>
               리뷰 등록
             </button>
-          </>
+          </div>
         ) : (
-          <p>로그인 후 리뷰를 작성할 수 있습니다.</p>
+          <p style={{ color: '#777' }}>로그인 후 리뷰를 작성할 수 있습니다.</p>
         )}
 
         <div style={{ marginTop: '20px' }}>
           {reviews.length === 0 ? (
-            <p>등록된 리뷰가 없습니다.</p>
+            <p style={{ color: '#888' }}>등록된 리뷰가 없습니다.</p>
           ) : (
             reviews.map((review) => (
               <div
                 key={review.id}
                 style={{
-                  border: '1px solid #ddd',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  marginBottom: '10px',
+                  border: '1px solid #eee',
+                  borderRadius: '16px',
+                  padding: '18px',
+                  marginBottom: '14px',
+                  background: '#fff',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.05)',
                 }}
               >
-                <p>{review.text}</p>
-                <small>{review.username} · {new Date(review.createdAt).toLocaleString('ko-KR')}</small>
+                {editingReviewId === review.id ? (
+                  <>
+                    <textarea
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      style={{
+                        width: '100%',
+                        minHeight: '80px',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '1px solid #ddd',
+                        marginBottom: '10px',
+                        resize: 'vertical',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="btn" onClick={() => handleUpdateReview(review.id)}>
+                        저장
+                      </button>
+                      <button className="btn" onClick={handleCancelEdit}>
+                        취소
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontSize: '16px', lineHeight: 1.6, marginBottom: '12px' }}>
+                      {review.text}
+                    </p>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '10px',
+                      }}
+                    >
+                      <small style={{ color: '#777' }}>
+                        {review.username || '익명'} ·{' '}
+                        {review.createdAt
+                          ? new Date(review.createdAt).toLocaleString('ko-KR')
+                          : '작성일 없음'}
+                      </small>
+
+                      {isLoggedIn && user?.username === review.username && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button className="btn" onClick={() => handleStartEdit(review)}>
+                            수정
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => handleDeleteReview(review.id)}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             ))
           )}

@@ -22,7 +22,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(@NonNull CorsRegistry registry) {
         registry.addMapping("/**") // 모든 백엔드 주소에 대해서
                 .allowedOrigins(parseAllowedOrigins()) // 리액트/배포 주소의 접근을 허락한다
-                .allowedMethods("GET", "POST", "PATCH", "DELETE", "OPTIONS") // 이 행동들을 허락한다
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS") // 이 행동들을 허락한다 (PUT: 리뷰 수정)
                 .allowedHeaders("*"); // Authorization 헤더 포함 모두 허용
     }
 
