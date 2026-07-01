@@ -1,454 +1,437 @@
-# 도서관리시스템 — AI 표지 자동 생성
+# 도서관리시스템 - AWS CI/CD & EKS 배포
 
-> KT AIVLE School AI 트랙 · 미니프로젝트 5차
-> "걷기가 서재 — 작가의 산책" · AI가 책 표지를 자동 생성하는 도서 관리 시스템
+> KT AIVLE School AI 트랙 미니프로젝트 6차
+> GitHub, AWS CodePipeline, CodeBuild, ECR, EKS, CloudWatch를 활용한 도서관리 웹 서비스 자동 배포 환경 구축
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-green)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-19-blue)](https://react.dev)
 [![Java](https://img.shields.io/badge/Java-17-orange)](https://openjdk.org)
-
-> 4차에서 개발한 React 프론트엔드(`frontend/`)의 json-server를 Spring Boot + JPA + H2로 대체하고,
-> AI 표지 저장 API와 BCrypt·토큰 기반 회원 인증까지 확장한다.
+[![AWS EKS](https://img.shields.io/badge/AWS-EKS-orange)](https://aws.amazon.com/eks/)
 
 ---
 
-## 1일차 산출물 (미션 1·2)
+## 프로젝트 개요
 
-### 미션 1 — 기획/설계
+기존 도서관리 시스템을 AWS 기반 CI/CD 환경으로 확장한 프로젝트입니다.
+프론트엔드와 백엔드를 각각 Docker 이미지로 빌드한 뒤 Amazon ECR에 저장하고, AWS CodePipeline과 CodeBuild를 통해 EKS 클러스터의 dev/prod 환경에 자동 배포합니다.
 
-#### Frontend 호출 패턴 분석
-`frontend/src/api/books.js` 에서 추출:
+주요 구현 범위는 다음과 같습니다.
 
-| 함수 | 메서드 | URL | 본문 |
-|---|---|---|---|
-| `getBooks` | GET | `/books` | - |
-| `getBook(id)` | GET | `/books/:id` | - |
-| `createBook(book)` | POST | `/books` | `{title, author, content, category, coverImageUrl, createdAt, updatedAt}` |
-| `updateBook(id, patch)` | PATCH | `/books/:id` | 변경 필드 + `updatedAt` |
-| `deleteBook(id)` | DELETE | `/books/:id` | - |
-
-추가로 `frontend/src/api/openai.js` 에서 AI 표지 생성 결과는 `coverImageUrl`로 PATCH 저장됨.
-
-#### ERD — Book 엔티티
-
-개념 ERD(Chen 표기법) + 논리 ERD(Crow's Foot, IE 표기법) + 테이블 명세서는 **[backend/ERD.md](backend/ERD.md)** 참고.
-
-요약:
-| 컬럼 | 타입 | NULL | 키 |
-|---|---|---|---|
-| `id` | BIGINT | NOT NULL | PK (AUTO_INCREMENT) |
-| `title` | VARCHAR(200) | NOT NULL | - |
-| `author` | VARCHAR(100) | NOT NULL | - |
-| `category` | VARCHAR(50) | NULL | - |
-| `content` | TEXT | NULL | - |
-| `cover_image_url` | TEXT | NULL | - |
-| `owner_username` | VARCHAR(50) | NULL | - (등록한 사용자, 토큰 기반) |
-| `created_at` | DATETIME | NOT NULL | - |
-| `updated_at` | DATETIME | NOT NULL | - |
-
-#### API 정의서
-
-요약표는 아래와 같다. 엔드포인트별 상세 요청/응답/에러 케이스는 **[backend/API.md](backend/API.md)** 참고.
-
-| # | 메서드 | URL | 설명 | 인증 | 성공 | 에러 |
-|---|---|---|---|---|---|---|
-| 1 | GET | `/books` | 목록 조회 | - | 200 | - |
-| 2 | GET | `/books/{id}` | 상세 조회 | - | 200 | 404 |
-| 3 | POST | `/books` | 등록 | ✅ | 200 | 400, 401 |
-| 4 | PATCH | `/books/{id}` | 부분 수정 | ✅ | 200 | 400, 401, 404 |
-| 5 | DELETE | `/books/{id}` | 삭제 | ✅ | 200 | 401, 404 |
-| 6 | PATCH | `/books/{id}/cover` | AI 표지 저장 | ✅ | 200 | 401, 404 |
-| 7 | POST | `/auth/signup` | 회원가입 | - | 201 | 401* |
-| 8 | POST | `/auth/login` | 로그인 (토큰 발급) | - | 200 | 401 |
-| 9 | POST | `/auth/logout` | 로그아웃 (토큰 무효화) | - | 204 | - |
-| 10 | GET | `/auth/me` | 내 정보 조회 (가입일 등) | ✅ | 200 | 401 |
-| 11 | PATCH | `/auth/password` | 비밀번호 변경 | ✅ | 200 | 401 |
-| 12 | DELETE | `/auth` | 회원 탈퇴 | ✅ | 204 | 401 |
-
-> 인증(✅)이 필요한 요청은 `Authorization: Bearer {token}` 헤더 필수. GET·`/auth/{signup,login,logout}`은 면제.
-> *회원가입의 401은 아이디 중복/입력 누락 시 `AuthException`으로 처리됨.
-> `/auth/**`는 인터셉터 면제 경로라 me·password·탈퇴는 컨트롤러에서 토큰을 직접 검증한다.
+- GitHub 기반 소스 관리 및 `dev`/`main` 브랜치 전략
+- CodePipeline + CodeBuild 기반 CI/CD 파이프라인 구성
+- Docker 이미지 빌드 및 Amazon ECR push
+- EKS 클러스터, Managed Node Group, Kubernetes manifest 구성
+- dev/prod namespace 분리 배포
+- LoadBalancer Service를 통한 외부 접속
+- Cloudflare 도메인 연결
+- RDS MySQL 연동 및 로컬 H2 fallback
+- HPA 기반 CPU Auto Scaling
+- CloudWatch Observability, Logs, Container Insights 구성
+- prod 배포 전 Manual Approval 단계 구성
 
 ---
 
-### 미션 2 — 환경설정 + 모든 계층 골격 작성
+## 서비스 주소
 
-#### 기술 스택
-- Java 17 / Spring Boot 4.0.6
-- Spring Web (MVC), Spring Data JPA, Validation, Lombok, DevTools
-- Spring Security Crypto (BCrypt 비밀번호 해시)
-- H2 (in-memory)
-- Gradle Wrapper
-- Frontend: React 19, Vite, Fetch API, React Context (인증 상태)
-
-#### 폴더 구조
-```
-4차/
-├── README.md                          # ← 통합 문서 (이 파일)
-├── backend/                           # Spring Boot 백엔드
-│   ├── API.md                         # API 상세 정의서
-│   ├── ERD.md                         # ERD (Mermaid + 명세서)
-│   ├── build.gradle
-│   ├── settings.gradle
-│   ├── gradlew, gradlew.bat
-│   ├── gradle/wrapper/
-│   └── src/main/
-│       ├── java/com/aivle/bookapp/
-│       │   ├── BookappApplication.java
-│       │   ├── config/
-│       │   │   ├── WebConfig.java              # CORS + 인터셉터 등록
-│       │   │   └── AuthInterceptor.java        # 토큰 인증 (POST/PATCH/DELETE)
-│       │   ├── controller/
-│       │   │   ├── BookController.java         # 도서 REST API (표지 저장 포함 6종)
-│       │   │   └── AuthController.java         # 회원가입/로그인/로그아웃/내정보/비번/탈퇴
-│       │   ├── service/
-│       │   │   ├── BookService.java            # 도서 비즈니스 로직
-│       │   │   └── AuthService.java            # 인증 + BCrypt + 토큰 + 비번변경/탈퇴
-│       │   ├── repository/
-│       │   │   ├── BookRepository.java         # JpaRepository<Book>
-│       │   │   └── UserRepository.java         # JpaRepository<User>
-│       │   ├── exception/
-│       │   │   ├── BookNotFoundException.java   # 404
-│       │   │   ├── AuthException.java           # 401
-│       │   │   └── GlobalExceptionHandler.java  # @RestControllerAdvice
-│       │   └── domain/
-│       │       ├── Book.java                   # 도서 Entity (ownerUsername 포함)
-│       │       └── User.java                   # 사용자 Entity
-│       └── resources/
-│           ├── application.yaml
-│           └── data.sql                       # 시드 8권
-└── frontend/                          # React 프론트엔드 (4차 통합)
-    └── src/
-        ├── pages/                     # BookList, BookDetail, BookCreate, BookEdit, Home, Login, Signup, MyPage
-        ├── api/                       # books.js, openai.js, auth.js, favorites.js
-        ├── context/AuthContext.jsx    # 전역 로그인 상태
-        └── components/Header.jsx      # 로그인 상태별 네비게이션 + 마이페이지
-```
-
-#### CORS 정책 (`WebConfig.java`)
-- 허용 Origin: `http://localhost:5173` (Vite), `http://localhost:3000` (json-server 잔재)
-- 허용 메서드: `GET, POST, PATCH, DELETE, OPTIONS`
-- 허용 헤더: `*` (`Authorization` 포함)
-
----
-
-## 2일차 산출물 (미션 3·4)
-
-### 미션 3 — Repository + Service + GET 2종 + Frontend 1차 연동
-
-#### [Repository] `BookRepository.java`
-`JpaRepository<Book, Long>` 인터페이스만 상속받아 한 줄로 정의. Spring Data JPA가 `findAll`, `findById`, `save`, `deleteById` 등 기본 CRUD 메서드를 자동 제공.
-
-```java
-public interface BookRepository extends JpaRepository<Book, Long> {
-}
-```
-
-**H2 콘솔 동작 검증**: `http://localhost:8080/h2-console` 접속 → JDBC URL `jdbc:h2:mem:testdb`, User `sa` (비번 없음) → `SELECT * FROM books;` 로 시드 5권 확인.
-
-#### [Service] `BookService` — 조회 2종
-- 생성자 주입: `@RequiredArgsConstructor` + `private final BookRepository`
-- `findAllBooks()`: 전체 도서 목록
-- `findBookById(Long id)`: 단일 도서 상세 (없으면 `BookNotFoundException` → 3일차에 사용자 정의 예외로 교체 완료)
-
-```java
-@Service
-@RequiredArgsConstructor
-public class BookService {
-    private final BookRepository bookRepository;
-
-    public List<Book> findAllBooks() {
-        return bookRepository.findAll();
-    }
-
-    public Book findBookById(Long id) {
-        return bookRepository.findById(id)
-            .orElseThrow(() -> new BookNotFoundException(id));
-    }
-}
-```
-
-#### [Controller] `BookController` — GET 2종
-- `GET /books` → 목록 조회
-- `GET /books/{id}` → 상세 조회
-
-```java
-@GetMapping
-public List<Book> getBooks() {
-    return bookService.findAllBooks();
-}
-
-@GetMapping("/{id}")
-public Book getBook(@PathVariable Long id) {
-    return bookService.findBookById(id);
-}
-```
-
-#### [통합] Frontend 1차 연동
-`frontend/src/api/books.js` 의 `BASE_URL` 한 줄 변경:
-```js
-const BASE_URL = 'http://localhost:8080/books'; // 기존: 3000 (json-server)
-```
-
-**Postman 테스트 시나리오**:
-| Method | URL | 기대 결과 |
+| 환경 | URL | 설명 |
 |---|---|---|
-| GET | `/books` | 200 OK + 시드 5권 JSON |
-| GET | `/books/1` | 200 OK + 1번 도서 |
-| GET | `/books/999` | 500 (3일차에 404로 정제 예정) |
+| dev | <https://dev-m-6th-t24.ldhcloud.com> | 개발/검증용 배포 환경 |
+| prod | <https://m-6th-t24.ldhcloud.com> | 운영 발표용 배포 환경 |
+
+도메인은 Cloudflare CNAME을 통해 각 namespace의 `frontend` LoadBalancer에 연결합니다.
 
 ---
 
-### 미션 4 — POST / PATCH / DELETE + 검증
+## 기술 스택
 
-#### [Domain] Book Entity 입력 검증 어노테이션
-`title`과 `author`에 `@NotBlank` + `@Size` 적용. Controller의 `@Valid`와 함께 작동.
-```java
-@NotBlank(message = "제목은 필수입니다.")
-@Size(max = 200, message = "제목은 200자 이하여야 합니다.")
-@Column(nullable = false)
-private String title;
+### Application
 
-@NotBlank(message = "저자는 필수입니다.")
-@Size(max = 100, message = "저자명은 100자 이하여야 합니다.")
-@Column(nullable = false)
-private String author;
+| 영역 | 기술 |
+|---|---|
+| Frontend | React 19, Vite, React Router |
+| Backend | Java 17, Spring Boot 4.0.6, Spring Web MVC, Spring Data JPA |
+| Database | RDS MySQL, H2 fallback |
+| Auth | 자체 토큰 인증, BCrypt password hash |
+| Web Server | Nginx |
+
+### Infrastructure / DevOps
+
+| 영역 | 기술 |
+|---|---|
+| CI/CD | AWS CodePipeline, AWS CodeBuild |
+| Image Registry | Amazon ECR |
+| Container Platform | Amazon EKS, Managed Node Group |
+| Kubernetes | Deployment, Service, HPA, Namespace |
+| Monitoring | CloudWatch Observability, CloudWatch Logs, Container Insights |
+| DNS/HTTPS | Cloudflare |
+
+---
+
+## 아키텍처
+
+```text
+Developer
+  -> GitHub(dev/main)
+  -> AWS CodePipeline
+  -> AWS CodeBuild
+      -> Gradle build
+      -> Vite build
+      -> Docker build
+      -> Amazon ECR push
+  -> Deploy Stage
+      -> kubectl apply
+      -> EKS dev/prod namespace
+  -> Kubernetes Service LoadBalancer
+  -> Cloudflare domain
+  -> User
 ```
-> `@Column(nullable = false)`는 DB 레벨 제약, `@NotBlank`/`@Size`는 요청 본문 검증. 둘은 별개라 같이 두는 게 일반적.
 
-#### [Service] 등록 / 부분 수정 / 삭제 메서드
-```java
-// 3. 신규 도서 등록
-public Book createBook(Book book) {
-    return bookRepository.save(book);
-}
+EKS 내부 요청 흐름은 다음과 같습니다.
 
-// 4. 도서 정보 수정 (부분 수정 - PATCH)
-public Book updateBook(Long id, Book patchBook) {
-    Book existingBook = findBookById(id);
-    if (patchBook.getTitle() != null) existingBook.setTitle(patchBook.getTitle());
-    if (patchBook.getAuthor() != null) existingBook.setAuthor(patchBook.getAuthor());
-    if (patchBook.getContent() != null) existingBook.setContent(patchBook.getContent());
-    if (patchBook.getCategory() != null) existingBook.setCategory(patchBook.getCategory());
-    return bookRepository.save(existingBook);
-}
-
-// 5. 도서 삭제
-public void deleteBook(Long id) {
-    bookRepository.deleteById(id);
-}
+```text
+Browser
+  -> Cloudflare
+  -> AWS LoadBalancer
+  -> frontend Service
+  -> frontend Pod(Nginx + React static files)
+  -> /api/* proxy
+  -> backend Service(ClusterIP)
+  -> backend Pod(Spring Boot)
+  -> RDS MySQL
 ```
 
-**PATCH 부분 수정의 핵심**: 요청 본문에서 받은 `patchBook` 중 `null이 아닌 필드만` 기존 객체에 반영. 따라서 Frontend가 `{title: "수정"}`만 보내도 author/content는 기존 값 유지.
+---
 
-#### [Controller] POST + 검증 / PATCH / DELETE
-```java
-// 3. 신규 도서 등록 (POST)
-@PostMapping
-public Book createBook(@Valid @RequestBody Book book) {
-    return bookService.createBook(book);
-}
+## 브랜치 및 배포 전략
 
-// 4. 도서 정보 수정 (PATCH)
-@PatchMapping("/{id}")
-public Book updateBook(@PathVariable Long id, @RequestBody Book patchBook) {
-    return bookService.updateBook(id, patchBook);
-}
+| 브랜치 | 역할 | 배포 대상 |
+|---|---|---|
+| `dev` | 기능 개발 및 검증 | EKS `dev` namespace |
+| `main` | 운영/발표용 안정 버전 | EKS `prod` namespace |
 
-// 5. 도서 삭제 (DELETE)
-@DeleteMapping("/{id}")
-public void deleteBook(@PathVariable Long id) {
-    bookService.deleteBook(id);
-}
+기본 흐름:
+
+```text
+feature branch -> dev PR/merge -> dev pipeline deploy
+dev 검증 완료 -> main PR/merge -> prod pipeline -> Manual Approval -> prod deploy
 ```
-- POST에 `@Valid` 적용 → Entity의 검증 어노테이션이 작동 → 400 Bad Request 자동 응답
-- PATCH는 `@PatchMapping` 사용 (`@PutMapping`이 아님 — Frontend가 PATCH로 호출)
 
-#### [통합] 풀스택 CRUD 동작 확인
+`main` 브랜치는 직접 push를 제한하고 PR 기반으로 변경사항을 반영합니다.
 
-**Postman 테스트 시나리오**:
-| Method | URL | Body 예시 | 기대 결과 |
-|---|---|---|---|
-| POST | `/books` | `{title:"새 책", author:"홍길동"}` | 200 OK + id 자동 부여 |
-| POST | `/books` | `{}` (title 누락) | 400 Bad Request (`@NotBlank` 작동) |
-| PATCH | `/books/1` | `{title:"수정"}` | 200 OK + title만 갱신 |
-| DELETE | `/books/1` | - | 200 OK |
+---
 
-**React 화면 동작**:
-- 메인 → 도서 목록 → 카드 클릭 → 상세 페이지 (GET)
-- `+ 신규 등록` → 폼 입력 → 저장 (POST)
-- 상세 → `수정` → 폼 수정 → 저장 (PATCH)
-- 상세 → `삭제` → 확인 → 목록에서 제거 (DELETE)
+## CI/CD 구성
 
-#### 한글 인코딩 이슈 해결
-H2 콘솔과 `data.sql` 시드 데이터의 한글이 깨지는 문제 발생 → `application.yaml`에 인코딩 명시:
+### Build
+
+`buildspec.yml`은 백엔드와 프론트엔드를 빌드하고 Docker 이미지를 ECR에 push합니다.
+
+- Backend: `./gradlew build -x test --no-daemon`
+- Frontend: `npm ci`, `npm run build`
+- Backend image: `m-6th-t24-backend:latest`
+- Frontend image: `m-6th-t24-frontend:latest`
+- Region: `us-west-1`
+
+### Deploy
+
+배포는 환경별 buildspec으로 분리했습니다.
+
+| 파일 | 대상 |
+|---|---|
+| `buildspec-deploy-dev.yml` | `k8s/dev/` 적용 |
+| `buildspec-deploy-prod.yml` | `k8s/prod/` 적용 |
+
+배포 단계에서는 다음 작업을 수행합니다.
+
+```bash
+aws eks update-kubeconfig --region us-west-1 --name m-6th-t24-cluster
+kubectl apply -f k8s/dev/
+kubectl rollout restart deployment/backend -n dev
+kubectl rollout restart deployment/frontend -n dev
+kubectl rollout status deployment/backend -n dev --timeout=180s
+kubectl rollout status deployment/frontend -n dev --timeout=180s
+```
+
+prod 환경은 namespace와 manifest 경로만 `prod`로 다릅니다.
+
+---
+
+## Kubernetes 구성
+
+```text
+k8s/
+├── dev/
+│   ├── backend-deployment.yaml
+│   ├── backend-service.yaml
+│   ├── backend-hpa.yaml
+│   ├── frontend-deployment.yaml
+│   ├── frontend-service.yaml
+│   └── frontend-hpa.yaml
+└── prod/
+    ├── backend-deployment.yaml
+    ├── backend-service.yaml
+    ├── backend-hpa.yaml
+    ├── frontend-deployment.yaml
+    ├── frontend-service.yaml
+    └── frontend-hpa.yaml
+```
+
+### Service
+
+| 서비스 | 타입 | 설명 |
+|---|---|---|
+| `frontend` | `LoadBalancer` | 외부 접속 진입점 |
+| `backend` | `ClusterIP` | 클러스터 내부 API 서버 |
+
+프론트엔드 Nginx는 `/api/*` 요청을 내부 backend Service로 프록시합니다.
+
+```text
+/api/books     -> http://backend:8080/books
+/api/auth      -> http://backend:8080/auth
+/api/reviews   -> http://backend:8080/reviews
+/api/favorites -> http://backend:8080/favorites
+```
+
+### Auto Scaling
+
+HPA는 CPU 사용률 기반으로 동작합니다.
+
+| 대상 | min | max | CPU target |
+|---|---:|---:|---:|
+| backend | 2 | 3 | 50% |
+| frontend | 2 | 4 | 60% |
+
+backend는 RDS connection 수 제한을 고려해 `maxReplicas`를 3으로 제한했습니다.
+부하 테스트에서는 backend CPU가 목표치를 초과했을 때 Pod가 2개에서 3개로 자동 확장되는 것을 확인했습니다.
+
+---
+
+## Database
+
+배포 환경에서는 Kubernetes Secret `db-secret`으로 RDS MySQL 접속 정보를 주입합니다.
+
+필요한 Secret key:
+
+```text
+DB_URL
+DB_DRIVER
+DB_USERNAME
+DB_PASSWORD
+```
+
+백엔드 설정은 환경변수가 있으면 RDS MySQL을 사용하고, 없으면 로컬 H2 파일 DB를 사용합니다.
+
 ```yaml
 spring:
-  sql:
-    init:
-      mode: always
-      encoding: UTF-8       # Windows에서 한글 깨짐 방지
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/bookdb;MODE=MySQL;DB_CLOSE_DELAY=-1}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
 ```
 
 ---
 
-## 3일차 산출물 (미션 5·6)
+## Monitoring
 
-### 미션 5 — 사용자 정의 예외 + `@Transactional`
+CloudWatch Observability add-on을 EKS에 설치해 로그와 성능 지표를 수집합니다.
 
-#### [Exception] 사용자 정의 예외 2종
-- `BookNotFoundException` — 존재하지 않는 도서 id 조회/수정/삭제 시 발생 (→ 404)
-- `AuthException` — 인증/회원가입 관련 실패 시 발생 (→ 401)
+확인된 구성:
 
-```java
-return bookRepository.findById(id)
-    .orElseThrow(() -> new BookNotFoundException(id));
-```
-
-#### [Service] `@Transactional` 적용
-조회 메서드(`findAllBooks`, `findBookById`)는 `@Transactional(readOnly = true)`, 변경 메서드(`createBook`, `updateBook`, `deleteBook`, `updateCover`)는 `@Transactional`을 붙여 트랜잭션 경계를 명확히 했다.
-
-### 미션 6 — `@RestControllerAdvice` 전역 예외 처리
-
-`GlobalExceptionHandler`가 컨트롤러 전역에서 예외를 가로채 일관된 JSON 에러 응답으로 변환한다.
-
-| 예외 | 상태 코드 | 응답 본문 |
-|---|---|---|
-| `BookNotFoundException` | 404 Not Found | `{ "error": "..." }` |
-| `MethodArgumentNotValidException` (`@Valid` 실패) | 400 Bad Request | `{ "필드명": "메시지" }` |
-| `AuthException` | 401 Unauthorized | `{ "error": "..." }` |
-
-```java
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-    @ExceptionHandler(BookNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleBookNotFound(BookNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(Map.of("error", ex.getMessage()));
-    }
-    // ... @Valid(400), AuthException(401) 핸들러
-}
-```
-
-이전엔 `GET /books/999`가 500을 던졌지만, 이제 404로 정제되어 응답된다.
+- `amazon-cloudwatch` namespace
+- `cloudwatch-agent` DaemonSet
+- `fluent-bit` DaemonSet
+- CloudWatch Logs log group
+  - `/aws/containerinsights/m-6th-t24-cluster/application`
+  - `/aws/containerinsights/m-6th-t24-cluster/dataplane`
+  - `/aws/containerinsights/m-6th-t24-cluster/host`
+  - `/aws/containerinsights/m-6th-t24-cluster/performance`
+- CloudWatch Container Insights
+- EKS dashboard
 
 ---
 
-## 4일차 산출물 (미션 7·8)
+## 로컬 실행
 
-### 미션 7 — AI 표지 저장 API + 회원 인증
+### Backend
 
-#### [Book] AI 표지 저장 (`PATCH /books/{id}/cover`)
-Frontend가 OpenAI Images API를 직접 호출해 받은 base64 이미지를 Data URL로 변환한 뒤 서버에 저장 요청한다. 백엔드는 `coverImageUrl` 필드만 갱신.
-
-```java
-@PatchMapping("/{id}/cover")
-public Book updateCover(@PathVariable Long id, @RequestBody Map<String, String> body) {
-    return bookService.updateCover(id, body.get("coverImageUrl"));
-}
-```
-
-#### [Auth] 회원가입 / 로그인 / 로그아웃
-- `User` 엔티티 추가 (`users` 테이블): `username`(unique), `password`(BCrypt 해시), `token`(UUID)
-- **비밀번호는 `BCryptPasswordEncoder`로 해시 저장** — 평문 저장 금지
-- 로그인 성공 시 UUID 토큰 발급 → `User.token`에 저장 후 클라이언트에 반환
-- 로그아웃 시 서버의 토큰을 `null`로 무효화
-
-| 메서드 | URL | 설명 | 응답 |
-|---|---|---|---|
-| POST | `/auth/signup` | 회원가입 (BCrypt 해시 저장) | 201 + `{id, username}` |
-| POST | `/auth/login` | 로그인 (토큰 발급) | 200 + `{token, username}` |
-| POST | `/auth/logout` | 로그아웃 (토큰 무효화) | 204 |
-
-#### [Interceptor] 토큰 기반 인증 (`AuthInterceptor`)
-`/books/**`에 인터셉터를 걸어 **쓰기 요청(POST/PATCH/DELETE)만 인증을 요구**한다.
-
-- `GET`·`OPTIONS`(CORS preflight) → 인증 면제 (누구나 조회 가능)
-- 쓰기 요청 → `Authorization: Bearer {token}` 헤더 검사, 무효 토큰이면 `AuthException`(401)
-- `/auth/**`, `/h2-console/**` → 인터셉터 제외 (`WebConfig.excludePathPatterns`)
-
-### 미션 8 — Frontend 인증 연동 + 마무리
-
-- **`api/auth.js`**: signup/login/logout 호출, 토큰을 `localStorage`에 저장, `authHeaders()`로 쓰기 요청에 자동 첨부
-- **`context/AuthContext.jsx`**: 전역 로그인 상태(`user`, `isLoggedIn`) 관리, 새로고침 시 토큰으로 상태 복원
-- **`Header.jsx`**: 로그인 상태에 따라 "로그인/회원가입" ↔ "{username} 님/로그아웃" 토글
-- **`LoginPage` / `SignupPage`**: 인증 폼 화면 추가
-- 이 인증 기반 위에 **마이페이지**(내 정보·내 도서·비번 변경·탈퇴)와 **찜** 기능을 추가 (아래 참고)
-
----
-
-## 추가 기능 — 마이페이지 · 찜
-
-### 마이페이지 (`MyPage.jsx`, `/mypage`)
-
-로그인 사용자의 개인 화면. **상단 탭으로 분리**해 한 번에 하나씩만 보여준다.
-
-| 탭 | 내용 | 연동 |
-|---|---|---|
-| 내 정보 | 아이디 · 가입일 + 프로필(이름/전화/이메일/선호 장르) 인라인 편집 | 가입일 `GET /auth/me`, 프로필은 localStorage |
-| 내 도서 | 내가 등록한 도서 목록 | `GET /books` → `ownerUsername`으로 필터 |
-| 찜 | 찜한 도서 목록 (하트로 해제) | localStorage (아래 참고) |
-| 계정 | 비밀번호 변경 · 회원 탈퇴 | `PATCH /auth/password`, `DELETE /auth` |
-
-- **도서 소유자**: 등록(POST) 시 백엔드가 **요청 본문이 아니라 토큰의 사용자**로 `Book.ownerUsername`을 설정 → 위변조 방지. (기존 시드 도서는 `null`이라 "내 도서"엔 로그인 후 새로 등록한 책부터 표시)
-- **비밀번호 변경**: 현재 비번 확인(BCrypt) 후 교체, 성공 시 서버가 토큰을 무효화 → 재로그인 유도
-- **회원 탈퇴**: 계정 삭제 시 등록 도서는 **삭제하지 않고 소유자만 해제**(비파괴적)
-
-### 찜 기능 (`api/favorites.js`)
-
-별도 백엔드 없이 **localStorage 기반**으로 구현 (`favorite_books:{username}` 키).
-
-- 목록/상세 페이지의 하트 버튼으로 토글 → `toggleFavoriteBook`
-- `CustomEvent`(`favorites-changed`) + `storage` 이벤트 구독으로 **여러 화면 실시간 동기화** (다른 탭/페이지에서 찜해도 마이페이지에 즉시 반영)
-
----
-
-## 팀 R&R
-
-| 역할 | 담당 |
-|---|---|
-| PM | 편진솔 |
-| Backend | 이제혁 |
-| Backend | 이소은 |
-| 통합예외처리 | 유정환 |
-| Frontend 연동 / AI | 김주형 |
-
----
-
-## 🚀 실행 방법
-
-### 백엔드 (터미널 1)
 ```bash
 cd backend
-gradlew bootRun          # Windows
-./gradlew bootRun        # Mac/Linux
-# http://localhost:8080/books
-# http://localhost:8080/h2-console  (JDBC URL: jdbc:h2:mem:testdb)
+chmod +x gradlew
+./gradlew bootRun
 ```
 
-### 프론트엔드 (터미널 2)
+기본 주소:
+
+```text
+http://localhost:8080
+```
+
+### Frontend
+
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
-# http://localhost:5173
+```
+
+기본 주소:
+
+```text
+http://localhost:5173
 ```
 
 ---
 
-## 📅 일정
+## 운영 확인 명령어
 
-| 일차 | 미션 | 핵심 | 상태 |
-|---|---|---|---|
-| 1일차 | M1·M2 | 설계 + 골격 + WebConfig + Git | ✅ |
-| 2일차 | M3·M4 | CRUD 5종 + Frontend 1차 연동 | ✅ |
-| 3일차 | M5·M6 | 사용자 정의 예외 + `@Transactional` + `@RestControllerAdvice` | ✅ |
-| 4일차 | M7·M8 | AI 표지 저장 API + 회원 인증(BCrypt+토큰) + Frontend 연동 | ✅ |
-| 추가 | - | 탭형 마이페이지(내 정보·내 도서·찜·계정) + localStorage 찜 기능 | ✅ |
+### EKS 접속
+
+```bash
+aws eks update-kubeconfig --region us-west-1 --name m-6th-t24-cluster
+kubectl get nodes
+```
+
+### dev 확인
+
+```bash
+kubectl get deploy -n dev
+kubectl get pods -n dev
+kubectl get svc -n dev
+kubectl get hpa -n dev
+```
+
+### prod 확인
+
+```bash
+kubectl get deploy -n prod
+kubectl get pods -n prod
+kubectl get svc -n prod
+kubectl get hpa -n prod
+```
+
+### HPA 부하 테스트
+
+```bash
+kubectl run load-generator -n dev --image=busybox:1.36 --restart=Never -- /bin/sh -c "while true; do wget -q -O- http://backend:8080/books >/dev/null; done"
+kubectl get hpa -n dev -w
+kubectl delete pod load-generator -n dev
+```
+
+### Auto Healing 확인
+
+```bash
+kubectl get pods -n dev
+kubectl delete pod <pod-name> -n dev
+kubectl get pods -n dev -w
+```
 
 ---
 
-## 📑 관련 문서
+## 주요 기능
 
-- [backend/ERD.md](backend/ERD.md) — 개념·논리 ERD (Mermaid) + 테이블 명세서
-- [backend/API.md](backend/API.md) — 6개 엔드포인트 상세 API 정의서
+- 도서 목록 조회
+- 도서 상세 조회
+- 도서 등록/수정/삭제
+- AI 표지 이미지 저장
+- 회원가입/로그인/로그아웃
+- 내 정보 조회 및 비밀번호 변경
+- 리뷰 등록/조회
+- 찜 등록/조회
+
+---
+
+## 프로젝트 구조
+
+```text
+.
+├── backend/                 # Spring Boot API server
+│   ├── Dockerfile
+│   ├── build.gradle
+│   └── src/main/
+├── frontend/                # React + Vite + Nginx
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── src/
+├── k8s/
+│   ├── dev/
+│   └── prod/
+├── buildspec.yml
+├── buildspec-deploy-dev.yml
+├── buildspec-deploy-prod.yml
+└── README.md
+```
+
+---
+
+## 구현 캡처
+
+### GitHub Repository
+
+`buildspec.yml`, 배포용 buildspec, `k8s/` manifest가 레포 루트에 구성되어 있습니다.
+
+![GitHub repository](docs/images/github-repository.png)
+
+### CodePipeline
+
+dev 파이프라인은 `dev` 브랜치 변경 사항을 빌드한 뒤 EKS `dev` namespace로 배포합니다.
+
+![dev pipeline success](docs/images/dev-pipeline-success.png)
+
+prod 파이프라인은 `main` 브랜치 기준으로 실행되며, Manual Approval 이후 EKS `prod` namespace로 배포합니다.
+
+![prod pipeline success](docs/images/prod-pipeline-success.png)
+
+### EKS LoadBalancer
+
+`frontend` Service는 dev/prod namespace에서 각각 LoadBalancer로 생성되어 외부 접속을 담당합니다.
+
+![loadbalancer services](docs/images/loadbalancer-services.png)
+
+### HPA Auto Scaling
+
+부하 발생용 Pod로 backend에 지속 요청을 보내 CPU 사용률을 높였고, HPA가 backend replica를 2개에서 3개로 자동 확장하는 것을 확인했습니다.
+
+![hpa scale out](docs/images/hpa-scale-out.png)
+
+### Kubernetes Pod 상태
+
+배포 후 backend/frontend Pod가 정상적으로 Running 상태가 된 것을 확인했습니다.
+
+![pods running](docs/images/pods-running.png)
+
+이미지 pull 실패 등 장애 상황은 Pod 상태에서 바로 확인할 수 있고, 원인 분석 후 재배포로 정상화했습니다.
+
+![pod image pull error](docs/images/pod-image-pull-error.png)
+
+### CloudWatch
+
+CloudWatch Observability add-on 설치 후 `cloudwatch-agent`와 `fluent-bit`가 EKS 노드에 DaemonSet으로 배포되었습니다.
+
+![cloudwatch agent](docs/images/cloudwatch-agent.png)
+
+CloudWatch Logs에서 EKS 컨테이너 로그가 수집되는 것을 확인했습니다.
+
+![cloudwatch log events](docs/images/cloudwatch-log-events.png)
+
+---
+
+## 제출/발표 캡처 체크리스트
+
+- GitHub Repository 및 `buildspec.yml`
+- CodePipeline 성공 화면
+- CodeBuild 빌드 로그
+- ECR backend/frontend 이미지
+- EKS Cluster 및 Node Group
+- EC2 EKS worker node 목록
+- EKS Pod Running 화면
+- frontend LoadBalancer Service
+- dev/prod 서비스 접속 화면
+- Manual Approval 단계
+- HPA scale-out 결과
+- CloudWatch Logs log group
+- CloudWatch Container Insights
+- CloudWatch Dashboard
+
+EC2 + CodeDeploy 방식을 사용하지 않았기 때문에 CodeDeploy Agent 화면은 없습니다.
+대신 CodePipeline Deploy Stage, CodeBuild의 `kubectl apply`/`rollout status` 로그, EKS Pod Running 화면으로 Kubernetes 배포 완료를 확인합니다.
